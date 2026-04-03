@@ -27,6 +27,7 @@ from .direction_handler import DirectionHandler
 from .zone_mapper        import ZoneMapper
 from .validator          import ParameterValidator
 from .flag_engine        import FlagEngine
+from .derived_metrics    import compute as compute_derived   # ← Phase 2 addition
 
 PROFILES_DIR = Path(__file__).resolve().parents[2] / "config" / "profiles"
 
@@ -56,6 +57,7 @@ class WeightingEngine:
         Run a sample through the full three-layer engine.
         sample: { "pH": 7.2, "TDS": 310, ... }
         """
+        sample         = compute_derived(sample)   # inject SAR + future derived metrics; passthrough for drinking water profiles
         all_flags      = []
         sub_indices    = {}
         unsafe         = False

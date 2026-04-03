@@ -2,467 +2,301 @@
   "profile_id": "fao_agriculture",
   "name": "FAO Agricultural Water Quality",
   "standard": "FAO Irrigation Water Quality Guidelines — Ayers & Westcot (1985); FAO Animal Production & Health Paper 68",
-  "version": "1.0",
-  "use_cases": ["irrigation", "livestock"],
-  "description": "Dual-use profile covering FAO irrigation suitability and livestock drinking water thresholds. Parameters tagged by applicable use_case. SAR may be passed directly or auto-computed from Na/Ca/Mg via derived_metrics.",
+  "version": "1.1",
+  "use_case": "agriculture",
+
+  "_notes": {
+    "SAR":        "Derived metric. Auto-computed from Na/Ca/Mg by derived_metrics.py if not passed directly. Formula: Na / sqrt((Ca+Mg)/2), all in meq/L.",
+    "EC":         "Primary salinity indicator. FAO restriction: <0.7 none, 0.7–3.0 slight/moderate, >3.0 severe. Non-relaxable — breach → NON_COMPLIANT.",
+    "hard_gates": "Heavy metals (As, Cd, Pb, Hg, Se) — breach → UNSAFE, no WQI computed.",
+    "dual_use":   "Profile targets irrigation. Livestock thresholds differ for TDS/Chloride/Nitrate — stored in livestock_limits for reference; runtime use_case routing to be added."
+  },
 
   "parameters": {
 
     "pH": {
-      "layer": "non_relaxable",
-      "direction": "range",
+      "layer":     "non_relaxable",
+      "direction": "both_bad",
       "relaxable": false,
-      "impact": "corrosion_soil_chemistry",
-      "use_case": ["irrigation", "livestock"],
-      "unit": "pH units",
+      "impact":    "soil_chemistry_corrosion",
+      "unit":      "pH units",
+      "weight":    0,
       "limits": {
-        "hard_gate_min": 4.5,
-        "hard_gate_max": 9.5,
-        "ideal_min": 6.5,
-        "ideal_max": 7.5,
-        "acceptable_min": 6.0,
-        "acceptable_max": 8.4,
-        "permissible_min": 5.5,
-        "permissible_max": 9.0,
-        "breach_min": 4.5,
-        "breach_max": 9.5
+        "ideal":      [6.5, 7.5],
+        "acceptable": [6.0, 8.4]
       }
     },
 
     "EC": {
-      "layer": "non_relaxable",
-      "direction": "lower_better",
+      "layer":     "non_relaxable",
+      "direction": "up_bad",
       "relaxable": false,
-      "impact": "salinity_hazard",
-      "use_case": ["irrigation"],
-      "unit": "dS/m",
-      "notes": "Primary salinity indicator. FAO restriction classes: <0.7 none, 0.7–3.0 slight/moderate, >3.0 severe.",
+      "impact":    "salinity_hazard",
+      "unit":      "dS/m",
+      "weight":    0,
       "limits": {
-        "hard_gate": 10.0,
-        "breach": 3.0,
-        "permissible": 2.0,
-        "acceptable": 0.7,
-        "ideal": 0.3
-      }
-    },
-
-    "TDS": {
-      "layer": "relaxable",
-      "direction": "lower_better",
-      "relaxable": true,
-      "impact": "salinity_osmotic_stress",
-      "use_case": ["irrigation", "livestock"],
-      "unit": "mg/L",
-      "notes": "Livestock thresholds differ from irrigation. Profile uses irrigation values; livestock overlay handled via use_case tag.",
-      "limits": {
-        "hard_gate": 10000,
-        "breach": 5000,
-        "permissible": 2000,
-        "acceptable": 1000,
-        "ideal": 450
-      },
-      "livestock_limits": {
-        "hard_gate": 7000,
-        "breach": 5000,
-        "permissible": 3000,
-        "acceptable": 1500,
-        "ideal": 1000
+        "ideal":      0.3,
+        "acceptable": 0.7
       }
     },
 
     "SAR": {
-      "layer": "non_relaxable",
-      "direction": "lower_better",
+      "layer":     "non_relaxable",
+      "direction": "up_bad",
       "relaxable": false,
-      "impact": "sodium_permeability_hazard",
-      "use_case": ["irrigation"],
-      "unit": "dimensionless",
-      "derived": true,
+      "impact":    "sodium_permeability_hazard",
+      "unit":      "dimensionless",
+      "weight":    0,
+      "derived":   true,
       "derived_from": ["Na", "Ca", "Mg"],
-      "notes": "Sodium Adsorption Ratio. Auto-computed by derived_metrics.py if not passed directly. FAO classes: <3 none, 3–9 slight/moderate, >9 severe.",
       "limits": {
-        "hard_gate": 26.0,
-        "breach": 9.0,
-        "permissible": 6.0,
-        "acceptable": 3.0,
-        "ideal": 1.0
+        "ideal":      1.0,
+        "acceptable": 3.0
+      }
+    },
+
+    "TDS": {
+      "layer":     "relaxable",
+      "direction": "up_bad",
+      "relaxable": true,
+      "impact":    "salinity_osmotic_stress",
+      "unit":      "mg/L",
+      "weight":    0.10,
+      "limits": {
+        "ideal":       450,
+        "acceptable":  1000,
+        "permissible": 2000
+      },
+      "livestock_limits": {
+        "ideal":       1000,
+        "acceptable":  3000,
+        "permissible": 7000
       }
     },
 
     "Boron": {
-      "layer": "relaxable",
-      "direction": "lower_better",
+      "layer":     "relaxable",
+      "direction": "up_bad",
       "relaxable": true,
-      "impact": "specific_ion_toxicity",
-      "use_case": ["irrigation"],
-      "unit": "mg/L",
-      "notes": "Sensitive crops: <0.7. Moderately tolerant: 0.7–3.0. Tolerant: 3.0–10.0. FAO hard gate >10.",
+      "impact":    "specific_ion_toxicity",
+      "unit":      "mg/L",
+      "weight":    0.10,
       "limits": {
-        "hard_gate": 10.0,
-        "breach": 3.0,
-        "permissible": 2.0,
-        "acceptable": 0.7,
-        "ideal": 0.3
+        "ideal":       0.3,
+        "acceptable":  0.7,
+        "permissible": 3.0
       }
     },
 
     "Chloride": {
-      "layer": "relaxable",
-      "direction": "lower_better",
+      "layer":     "relaxable",
+      "direction": "up_bad",
       "relaxable": true,
-      "impact": "specific_ion_toxicity",
-      "use_case": ["irrigation", "livestock"],
-      "unit": "mg/L",
-      "notes": "Irrigation: FAO no-restriction <142 mg/L (4 meq/L). Livestock: <1500 mg/L acceptable.",
+      "impact":    "specific_ion_toxicity",
+      "unit":      "mg/L",
+      "weight":    0.10,
       "limits": {
-        "hard_gate": 1065,
-        "breach": 355,
-        "permissible": 213,
-        "acceptable": 142,
-        "ideal": 71
+        "ideal":       71,
+        "acceptable":  142,
+        "permissible": 355
       },
       "livestock_limits": {
-        "hard_gate": 3000,
-        "breach": 1500,
-        "permissible": 800,
-        "acceptable": 400,
-        "ideal": 200
+        "ideal":       400,
+        "acceptable":  1500,
+        "permissible": 3000
       }
     },
 
     "Sodium": {
-      "layer": "relaxable",
-      "direction": "lower_better",
+      "layer":     "relaxable",
+      "direction": "up_bad",
       "relaxable": true,
-      "impact": "specific_ion_toxicity",
-      "use_case": ["irrigation"],
-      "unit": "mg/L",
-      "notes": "FAO leaf-burn risk for overhead irrigation. No-restriction <69 mg/L (3 meq/L).",
+      "impact":    "specific_ion_toxicity",
+      "unit":      "mg/L",
+      "weight":    0.10,
       "limits": {
-        "hard_gate": 920,
-        "breach": 460,
-        "permissible": 207,
-        "acceptable": 69,
-        "ideal": 35
+        "ideal":       35,
+        "acceptable":  69,
+        "permissible": 207
       }
     },
 
     "Nitrate_N": {
-      "layer": "relaxable",
-      "direction": "lower_better",
+      "layer":     "relaxable",
+      "direction": "up_bad",
       "relaxable": true,
-      "impact": "excessive_vegetative_growth",
-      "use_case": ["irrigation"],
-      "unit": "mg/L as N",
-      "notes": "FAO irrigation: <5 no restriction, 5–30 slight/moderate, >30 severe.",
+      "impact":    "excessive_vegetative_growth",
+      "unit":      "mg/L as N",
+      "weight":    0.08,
       "limits": {
-        "hard_gate": 100,
-        "breach": 30,
-        "permissible": 15,
-        "acceptable": 5,
-        "ideal": 2
-      }
-    },
-
-    "Nitrate": {
-      "layer": "relaxable",
-      "direction": "lower_better",
-      "relaxable": true,
-      "impact": "methemoglobinemia_risk",
-      "use_case": ["livestock"],
-      "unit": "mg/L as NO3",
-      "notes": "FAO livestock: <100 mg/L NO3 acceptable. >200 may cause toxicity in young animals.",
-      "limits": {
-        "hard_gate": 400,
-        "breach": 200,
-        "permissible": 100,
-        "acceptable": 44,
-        "ideal": 20
+        "ideal":       2,
+        "acceptable":  5,
+        "permissible": 30
+      },
+      "livestock_limits": {
+        "ideal":       20,
+        "acceptable":  44,
+        "permissible": 100
       }
     },
 
     "Bicarbonate": {
-      "layer": "relaxable",
-      "direction": "lower_better",
+      "layer":     "relaxable",
+      "direction": "up_bad",
       "relaxable": true,
-      "impact": "permeability_adj_sar",
-      "use_case": ["irrigation"],
-      "unit": "mg/L",
-      "notes": "FAO: <90 mg/L (1.5 meq/L) no restriction, 90–518 slight/moderate, >518 severe.",
+      "impact":    "permeability_adj_sar",
+      "unit":      "mg/L",
+      "weight":    0.08,
       "limits": {
-        "hard_gate": 730,
-        "breach": 518,
-        "permissible": 365,
-        "acceptable": 90,
-        "ideal": 30
+        "ideal":       30,
+        "acceptable":  90,
+        "permissible": 518
       }
     },
 
     "Sulfate": {
-      "layer": "relaxable",
-      "direction": "lower_better",
+      "layer":     "relaxable",
+      "direction": "up_bad",
       "relaxable": true,
-      "impact": "soil_permeability_livestock_health",
-      "use_case": ["irrigation", "livestock"],
-      "unit": "mg/L",
-      "notes": "Livestock: >500 mg/L linked to scours. Irrigation: affects soil structure at high loads.",
+      "impact":    "soil_permeability",
+      "unit":      "mg/L",
+      "weight":    0.06,
       "limits": {
-        "hard_gate": 2000,
-        "breach": 1000,
-        "permissible": 500,
-        "acceptable": 250,
-        "ideal": 100
-      }
-    },
-
-    "Fluoride": {
-      "layer": "relaxable",
-      "direction": "lower_better",
-      "relaxable": true,
-      "impact": "fluorosis",
-      "use_case": ["livestock"],
-      "unit": "mg/L",
-      "notes": "FAO livestock: <2 mg/L acceptable. >10 mg/L causes chronic fluorosis.",
-      "limits": {
-        "hard_gate": 10.0,
-        "breach": 5.0,
-        "permissible": 2.0,
-        "acceptable": 1.0,
-        "ideal": 0.5
-      }
-    },
-
-    "Hardness": {
-      "layer": "relaxable",
-      "direction": "lower_better",
-      "relaxable": true,
-      "impact": "mineral_balance",
-      "use_case": ["livestock"],
-      "unit": "mg/L as CaCO3",
-      "notes": "FAO livestock: <1500 mg/L. Not a primary irrigation concern.",
-      "limits": {
-        "hard_gate": 3000,
-        "breach": 1500,
-        "permissible": 1000,
-        "acceptable": 600,
-        "ideal": 300
+        "ideal":       100,
+        "acceptable":  500,
+        "permissible": 1000
       }
     },
 
     "Iron": {
-      "layer": "relaxable",
-      "direction": "lower_better",
+      "layer":     "relaxable",
+      "direction": "up_bad",
       "relaxable": true,
-      "impact": "plugging_staining",
-      "use_case": ["irrigation"],
-      "unit": "mg/L",
-      "notes": "FAO: >5 mg/L causes severe plugging in drip systems. Not a toxicity concern.",
+      "impact":    "plugging_staining",
+      "unit":      "mg/L",
+      "weight":    0.05,
       "limits": {
-        "hard_gate": 20.0,
-        "breach": 5.0,
-        "permissible": 1.5,
-        "acceptable": 0.5,
-        "ideal": 0.1
+        "ideal":       0.1,
+        "acceptable":  0.5,
+        "permissible": 5.0
       }
     },
 
     "Manganese": {
-      "layer": "relaxable",
-      "direction": "lower_better",
+      "layer":     "relaxable",
+      "direction": "up_bad",
       "relaxable": true,
-      "impact": "plugging",
-      "use_case": ["irrigation"],
-      "unit": "mg/L",
-      "notes": "FAO: >0.2 mg/L slight plugging risk, >1.5 severe.",
+      "impact":    "plugging",
+      "unit":      "mg/L",
+      "weight":    0.04,
       "limits": {
-        "hard_gate": 10.0,
-        "breach": 1.5,
-        "permissible": 0.5,
-        "acceptable": 0.2,
-        "ideal": 0.05
-      }
-    },
-
-    "Arsenic": {
-      "layer": "hard_gate",
-      "direction": "lower_better",
-      "relaxable": false,
-      "impact": "crop_toxicity_soil_accumulation",
-      "use_case": ["irrigation", "livestock"],
-      "unit": "mg/L",
-      "limits": {
-        "hard_gate": 0.1,
-        "breach": 0.05,
-        "permissible": 0.02,
-        "acceptable": 0.01,
-        "ideal": 0.005
-      }
-    },
-
-    "Cadmium": {
-      "layer": "hard_gate",
-      "direction": "lower_better",
-      "relaxable": false,
-      "impact": "soil_accumulation_food_chain",
-      "use_case": ["irrigation", "livestock"],
-      "unit": "mg/L",
-      "limits": {
-        "hard_gate": 0.01,
-        "breach": 0.005,
-        "permissible": 0.002,
-        "acceptable": 0.001,
-        "ideal": 0.0005
-      }
-    },
-
-    "Lead": {
-      "layer": "hard_gate",
-      "direction": "lower_better",
-      "relaxable": false,
-      "impact": "soil_accumulation_livestock_toxicity",
-      "use_case": ["irrigation", "livestock"],
-      "unit": "mg/L",
-      "limits": {
-        "hard_gate": 5.0,
-        "breach": 1.0,
-        "permissible": 0.2,
-        "acceptable": 0.05,
-        "ideal": 0.01
-      }
-    },
-
-    "Mercury": {
-      "layer": "hard_gate",
-      "direction": "lower_better",
-      "relaxable": false,
-      "impact": "crop_soil_livestock_toxicity",
-      "use_case": ["irrigation", "livestock"],
-      "unit": "mg/L",
-      "limits": {
-        "hard_gate": 0.002,
-        "breach": 0.001,
-        "permissible": 0.0005,
-        "acceptable": 0.0001,
-        "ideal": 0.00005
-      }
-    },
-
-    "Selenium": {
-      "layer": "hard_gate",
-      "direction": "lower_better",
-      "relaxable": false,
-      "impact": "phytotoxicity_livestock_selenosis",
-      "use_case": ["irrigation", "livestock"],
-      "unit": "mg/L",
-      "notes": "FAO irrigation: 0.02 mg/L limit. Livestock: 0.05 mg/L.",
-      "limits": {
-        "hard_gate": 0.05,
-        "breach": 0.02,
-        "permissible": 0.01,
-        "acceptable": 0.005,
-        "ideal": 0.001
-      }
-    },
-
-    "Chromium": {
-      "layer": "hard_gate",
-      "direction": "lower_better",
-      "relaxable": false,
-      "impact": "phytotoxicity",
-      "use_case": ["irrigation"],
-      "unit": "mg/L",
-      "limits": {
-        "hard_gate": 0.1,
-        "breach": 0.05,
-        "permissible": 0.02,
-        "acceptable": 0.01,
-        "ideal": 0.002
-      }
-    },
-
-    "Nickel": {
-      "layer": "hard_gate",
-      "direction": "lower_better",
-      "relaxable": false,
-      "impact": "phytotoxicity",
-      "use_case": ["irrigation"],
-      "unit": "mg/L",
-      "limits": {
-        "hard_gate": 0.2,
-        "breach": 0.1,
-        "permissible": 0.05,
-        "acceptable": 0.02,
-        "ideal": 0.005
+        "ideal":       0.05,
+        "acceptable":  0.2,
+        "permissible": 1.5
       }
     },
 
     "Zinc": {
-      "layer": "relaxable",
-      "direction": "lower_better",
+      "layer":     "relaxable",
+      "direction": "up_bad",
       "relaxable": true,
-      "impact": "phytotoxicity_soil_accumulation",
-      "use_case": ["irrigation"],
-      "unit": "mg/L",
+      "impact":    "phytotoxicity",
+      "unit":      "mg/L",
+      "weight":    0.04,
       "limits": {
-        "hard_gate": 10.0,
-        "breach": 5.0,
-        "permissible": 2.0,
-        "acceptable": 1.0,
-        "ideal": 0.2
+        "ideal":       0.2,
+        "acceptable":  1.0,
+        "permissible": 5.0
       }
     },
 
     "Copper": {
-      "layer": "relaxable",
-      "direction": "lower_better",
+      "layer":     "relaxable",
+      "direction": "up_bad",
       "relaxable": true,
-      "impact": "phytotoxicity",
-      "use_case": ["irrigation"],
-      "unit": "mg/L",
+      "impact":    "phytotoxicity",
+      "unit":      "mg/L",
+      "weight":    0.03,
       "limits": {
-        "hard_gate": 5.0,
-        "breach": 0.2,
-        "permissible": 0.1,
-        "acceptable": 0.05,
-        "ideal": 0.01
+        "ideal":       0.01,
+        "acceptable":  0.05,
+        "permissible": 0.2
+      }
+    },
+
+    "Fluoride": {
+      "layer":     "relaxable",
+      "direction": "up_bad",
+      "relaxable": true,
+      "impact":    "fluorosis_livestock",
+      "unit":      "mg/L",
+      "weight":    0.04,
+      "limits": {
+        "ideal":       0.5,
+        "acceptable":  1.0,
+        "permissible": 2.0
+      }
+    },
+
+    "Arsenic": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "crop_toxicity_soil_accumulation",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.1
+      }
+    },
+
+    "Cadmium": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "soil_accumulation_food_chain",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.01
+      }
+    },
+
+    "Lead": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "soil_accumulation_livestock_toxicity",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 5.0
+      }
+    },
+
+    "Mercury": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "crop_soil_livestock_toxicity",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.002
+      }
+    },
+
+    "Selenium": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "phytotoxicity_selenosis",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.02
       }
     }
 
-  },
-
-  "wqi_weights": {
-    "EC":          0.20,
-    "SAR":         0.18,
-    "TDS":         0.10,
-    "pH":          0.08,
-    "Boron":       0.08,
-    "Chloride":    0.07,
-    "Sodium":      0.07,
-    "Nitrate_N":   0.05,
-    "Bicarbonate": 0.05,
-    "Sulfate":     0.04,
-    "Iron":        0.03,
-    "Manganese":   0.02,
-    "Zinc":        0.02,
-    "Copper":      0.01,
-    "_note": "Heavy metals are hard_gate only — they gate UNSAFE but do not blend into WQI. Weights sum to 1.0 over relaxable/non_relaxable irrigation params."
-  },
-
-  "livestock_wqi_weights": {
-    "TDS":      0.30,
-    "pH":       0.15,
-    "Nitrate":  0.15,
-    "Sulfate":  0.15,
-    "Chloride": 0.12,
-    "Fluoride": 0.08,
-    "Hardness": 0.05,
-    "_note": "Separate weight table for livestock use_case. SAR, EC, Boron excluded — not livestock concerns."
-  },
-
-  "status_vocab": {
-    "UNSAFE": "Hard gate breached — water is unsafe for the specified use case",
-    "NON_COMPLIANT": "FAO guideline exceeded — restricted use, management required",
-    "MODERATE_RESTRICTION": "Slight to moderate restriction — suitable with precautions",
-    "PASS": "No restriction — suitable for intended use"
   }
 }

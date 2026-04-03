@@ -1,0 +1,307 @@
+{
+  "profile_id": "aquaculture",
+  "name": "Aquaculture Water Quality",
+  "standard": "FAO/NACA Aquaculture Guidelines; Boyd (1990) Water Quality in Ponds for Aquaculture; USEPA Aquatic Life Criteria",
+  "version": "1.0",
+  "use_case": "aquaculture",
+
+  "_notes": {
+    "primary_target":   "Freshwater fish (general). Marine and shrimp limits stored as marine_limits / shrimp_limits where they differ significantly.",
+    "DO":               "Most critical parameter. Fish suffocate below 3 mg/L. Breach zone (qi > 100) provides steep penalty without a hard_gate, matching real-world hypoxia risk curve.",
+    "Ammonia_N":        "Un-ionized NH3 (not total ammonia). Toxicity is species- and pH-dependent. Hard gate at 0.02 mg/L covers sensitive species.",
+    "H2S":              "Hydrogen sulfide. Produced in anoxic sediments. Extremely toxic even at trace levels.",
+    "Chlorine":         "Free residual chlorine. Lethal to fish gills at very low concentrations.",
+    "Temperature":      "Both_bad: too cold stresses metabolism, too hot depletes DO and accelerates disease. Limits are for tropical/subtropical freshwater species.",
+    "hard_gates":       "Ammonia_N, Nitrite, H2S, Chlorine, Copper, Zinc, Mercury, Arsenic, Lead — any breach → UNSAFE.",
+    "marine_limits":    "Where present, these replace primary limits for marine or brackish systems."
+  },
+
+  "parameters": {
+
+    "pH": {
+      "layer":     "non_relaxable",
+      "direction": "both_bad",
+      "relaxable": false,
+      "impact":    "physiological_stress_gill_damage",
+      "unit":      "pH units",
+      "weight":    0,
+      "limits": {
+        "ideal":      [7.0, 8.0],
+        "acceptable": [6.5, 9.0]
+      },
+      "marine_limits": {
+        "ideal":      [7.8, 8.3],
+        "acceptable": [7.5, 8.5]
+      }
+    },
+
+    "DO": {
+      "layer":     "relaxable",
+      "direction": "down_bad",
+      "relaxable": true,
+      "impact":    "hypoxia_fish_mortality",
+      "unit":      "mg/L",
+      "weight":    0.25,
+      "limits": {
+        "ideal":       10.0,
+        "acceptable":  5.0,
+        "permissible": 3.0
+      }
+    },
+
+    "Ammonia_N": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "gill_damage_neurological_toxicity",
+      "unit":      "mg/L as NH3-N (un-ionized)",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.02
+      }
+    },
+
+    "Nitrite": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "methemoglobinemia_brown_blood_disease",
+      "unit":      "mg/L as NO2",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.1
+      }
+    },
+
+    "H2S": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "acute_toxicity_gill_damage",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.002
+      }
+    },
+
+    "Chlorine": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "gill_necrosis_acute_mortality",
+      "unit":      "mg/L (free residual)",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.003
+      }
+    },
+
+    "Copper": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "gill_toxicity_mucus_disruption",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.006
+      }
+    },
+
+    "Zinc": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "gill_toxicity",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.05
+      }
+    },
+
+    "Mercury": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "bioaccumulation_neurological_toxicity",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.0001
+      }
+    },
+
+    "Arsenic": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "chronic_toxicity_bioaccumulation",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.05
+      }
+    },
+
+    "Lead": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "neurotoxicity_bioaccumulation",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.1
+      }
+    },
+
+    "Temperature": {
+      "layer":     "relaxable",
+      "direction": "both_bad",
+      "relaxable": true,
+      "impact":    "metabolic_stress_do_depletion_disease",
+      "unit":      "°C",
+      "weight":    0.07,
+      "limits": {
+        "ideal":       [22, 28],
+        "acceptable":  [15, 32],
+        "permissible": 35
+      },
+      "marine_limits": {
+        "ideal":      [26, 30],
+        "acceptable": [20, 33],
+        "permissible": 35
+      },
+      "shrimp_limits": {
+        "ideal":      [27, 30],
+        "acceptable": [23, 33],
+        "permissible": 35
+      }
+    },
+
+    "Nitrate": {
+      "layer":     "relaxable",
+      "direction": "up_bad",
+      "relaxable": true,
+      "impact":    "chronic_stress_algal_bloom",
+      "unit":      "mg/L as NO3",
+      "weight":    0.10,
+      "limits": {
+        "ideal":       10,
+        "acceptable":  50,
+        "permissible": 100
+      }
+    },
+
+    "CO2": {
+      "layer":     "relaxable",
+      "direction": "up_bad",
+      "relaxable": true,
+      "impact":    "respiratory_stress_acidosis",
+      "unit":      "mg/L (free CO2)",
+      "weight":    0.10,
+      "limits": {
+        "ideal":       5,
+        "acceptable":  10,
+        "permissible": 20
+      }
+    },
+
+    "BOD": {
+      "layer":     "relaxable",
+      "direction": "up_bad",
+      "relaxable": true,
+      "impact":    "do_depletion_organic_load",
+      "unit":      "mg/L",
+      "weight":    0.10,
+      "limits": {
+        "ideal":       2,
+        "acceptable":  5,
+        "permissible": 10
+      }
+    },
+
+    "Turbidity": {
+      "layer":     "relaxable",
+      "direction": "up_bad",
+      "relaxable": true,
+      "impact":    "gill_clogging_light_penetration",
+      "unit":      "NTU",
+      "weight":    0.08,
+      "limits": {
+        "ideal":       5,
+        "acceptable":  30,
+        "permissible": 50
+      }
+    },
+
+    "Alkalinity": {
+      "layer":     "relaxable",
+      "direction": "both_bad",
+      "relaxable": true,
+      "impact":    "ph_buffering_capacity",
+      "unit":      "mg/L as CaCO3",
+      "weight":    0.08,
+      "limits": {
+        "ideal":       [75, 150],
+        "acceptable":  [30, 200],
+        "permissible": 300
+      }
+    },
+
+    "Hardness": {
+      "layer":     "relaxable",
+      "direction": "both_bad",
+      "relaxable": true,
+      "impact":    "osmoregulation_mineral_balance",
+      "unit":      "mg/L as CaCO3",
+      "weight":    0.07,
+      "limits": {
+        "ideal":       [75, 200],
+        "acceptable":  [20, 300],
+        "permissible": 500
+      }
+    },
+
+    "TDS": {
+      "layer":     "relaxable",
+      "direction": "up_bad",
+      "relaxable": true,
+      "impact":    "osmotic_stress",
+      "unit":      "mg/L",
+      "weight":    0.08,
+      "limits": {
+        "ideal":       200,
+        "acceptable":  500,
+        "permissible": 1500
+      },
+      "marine_limits": {
+        "ideal":       30000,
+        "acceptable":  35000,
+        "permissible": 40000
+      },
+      "shrimp_limits": {
+        "ideal":       15000,
+        "acceptable":  25000,
+        "permissible": 35000
+      }
+    },
+
+    "Iron": {
+      "layer":     "relaxable",
+      "direction": "up_bad",
+      "relaxable": true,
+      "impact":    "gill_damage_do_competition",
+      "unit":      "mg/L",
+      "weight":    0.05,
+      "limits": {
+        "ideal":       0.05,
+        "acceptable":  0.3,
+        "permissible": 1.0
+      }
+    }
+
+  }
+}

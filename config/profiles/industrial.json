@@ -1,0 +1,348 @@
+{
+  "profile_id": "industrial",
+  "name": "Industrial Water Quality",
+  "standard": "WHO Guidelines for Industrial Water Use; BIS IS:2490; General Engineering Standards for Boiler/Cooling/Process Water",
+  "version": "1.0",
+  "use_case": "industrial",
+
+  "_notes": {
+    "primary_target":   "Boiler feed water (strictest limits). Cooling and process water thresholds stored as cooling_limits / process_limits for future use_case routing.",
+    "DO_boiler":        "Dissolved oxygen is UP_BAD for boilers — oxygen causes electrochemical corrosion of steel boiler tubes. Opposite of drinking water / aquaculture.",
+    "pH_boiler":        "Alkaline pH (8.5–9.5) maintained deliberately for boiler systems to suppress corrosion. Cooling water uses a wider neutral-alkaline range.",
+    "Hardness":         "Scale formation critical in boilers — even 1°F hardness causes deposits at high pressures. Hard_gate at 50 mg/L. Cooling water is less strict.",
+    "Silica":           "Silica deposits on turbine blades at high temperatures. Very low hard_gate for high-pressure boilers.",
+    "hard_gates":       "TDS, Hardness, Silica, Iron, DO, Copper, Arsenic, Lead, Mercury — any breach → UNSAFE (boiler context).",
+    "cooling_limits":   "Where present, cooling_limits hold thresholds for open/closed cooling tower systems.",
+    "process_limits":   "Where present, process_limits hold general process water thresholds (food-grade process water needs drinking water standards)."
+  },
+
+  "parameters": {
+
+    "pH": {
+      "layer":     "non_relaxable",
+      "direction": "both_bad",
+      "relaxable": false,
+      "impact":    "corrosion_scale",
+      "unit":      "pH units",
+      "weight":    0,
+      "limits": {
+        "ideal":      [8.5, 9.5],
+        "acceptable": [8.0, 10.5]
+      },
+      "cooling_limits": {
+        "ideal":      [7.0, 8.5],
+        "acceptable": [6.5, 9.0]
+      },
+      "process_limits": {
+        "ideal":      [6.5, 8.5],
+        "acceptable": [6.0, 9.5]
+      }
+    },
+
+    "Alkalinity": {
+      "layer":     "non_relaxable",
+      "direction": "both_bad",
+      "relaxable": false,
+      "impact":    "corrosion_buffering_scale",
+      "unit":      "mg/L as CaCO3",
+      "weight":    0,
+      "limits": {
+        "ideal":      [50, 200],
+        "acceptable": [30, 300]
+      },
+      "cooling_limits": {
+        "ideal":      [80, 400],
+        "acceptable": [50, 600]
+      }
+    },
+
+    "Chloride": {
+      "layer":     "non_relaxable",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "stress_corrosion_cracking_pitting",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "ideal":      0,
+        "acceptable": 50
+      },
+      "cooling_limits": {
+        "ideal":      100,
+        "acceptable": 500
+      },
+      "process_limits": {
+        "ideal":      200,
+        "acceptable": 1000
+      }
+    },
+
+    "TDS": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "scale_carryover_deposits",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 500
+      },
+      "cooling_limits": {
+        "ideal":       500,
+        "acceptable":  1500,
+        "permissible": 3000
+      },
+      "process_limits": {
+        "ideal":       300,
+        "acceptable":  1000,
+        "permissible": 2000
+      }
+    },
+
+    "Hardness": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "scale_formation_boiler_tubes",
+      "unit":      "mg/L as CaCO3",
+      "weight":    0,
+      "limits": {
+        "acceptable": 50
+      },
+      "cooling_limits": {
+        "ideal":       100,
+        "acceptable":  500,
+        "permissible": 1000
+      }
+    },
+
+    "Silica": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "turbine_blade_deposits",
+      "unit":      "mg/L as SiO2",
+      "weight":    0,
+      "limits": {
+        "acceptable": 5
+      },
+      "cooling_limits": {
+        "ideal":       20,
+        "acceptable":  50,
+        "permissible": 150
+      }
+    },
+
+    "Iron": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "fouling_corrosion_deposits",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.1
+      },
+      "cooling_limits": {
+        "ideal":       0.2,
+        "acceptable":  0.5,
+        "permissible": 2.0
+      }
+    },
+
+    "DO": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "electrochemical_corrosion_pitting",
+      "unit":      "mg/L",
+      "weight":    0,
+      "_note":     "UP_BAD for boilers — dissolved oxygen attacks steel at high temperature/pressure. Deaeration to < 0.1 mg/L required. permissible=14.6 (saturation ceiling) anchors the validator suspect check so normal dissolved oxygen readings are not incorrectly skipped.",
+      "limits": {
+        "ideal":      0,
+        "acceptable": 0.1,
+        "permissible": 14.6
+      }
+    },
+
+    "Copper": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "deposits_corrosion_catalysis",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.05
+      }
+    },
+
+    "Manganese": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "fouling_deposits",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.1
+      },
+      "cooling_limits": {
+        "ideal":       0.05,
+        "acceptable":  0.2,
+        "permissible": 1.0
+      }
+    },
+
+    "Arsenic": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "process_contamination_worker_health",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.05
+      }
+    },
+
+    "Lead": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "process_contamination",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.05
+      }
+    },
+
+    "Mercury": {
+      "layer":     "hard_gate",
+      "direction": "up_bad",
+      "relaxable": false,
+      "impact":    "process_contamination",
+      "unit":      "mg/L",
+      "weight":    0,
+      "limits": {
+        "acceptable": 0.001
+      }
+    },
+
+    "Sulfate": {
+      "layer":     "relaxable",
+      "direction": "up_bad",
+      "relaxable": true,
+      "impact":    "scale_corrosion",
+      "unit":      "mg/L",
+      "weight":    0.20,
+      "limits": {
+        "ideal":       50,
+        "acceptable":  100,
+        "permissible": 200
+      },
+      "cooling_limits": {
+        "ideal":       200,
+        "acceptable":  500,
+        "permissible": 1000
+      }
+    },
+
+    "Turbidity": {
+      "layer":     "relaxable",
+      "direction": "up_bad",
+      "relaxable": true,
+      "impact":    "fouling_heat_transfer_efficiency",
+      "unit":      "NTU",
+      "weight":    0.20,
+      "limits": {
+        "ideal":       0,
+        "acceptable":  5,
+        "permissible": 10
+      },
+      "cooling_limits": {
+        "ideal":       2,
+        "acceptable":  10,
+        "permissible": 25
+      }
+    },
+
+    "COD": {
+      "layer":     "relaxable",
+      "direction": "up_bad",
+      "relaxable": true,
+      "impact":    "biological_fouling_corrosion_under_deposits",
+      "unit":      "mg/L",
+      "weight":    0.20,
+      "limits": {
+        "ideal":       5,
+        "acceptable":  15,
+        "permissible": 30
+      },
+      "cooling_limits": {
+        "ideal":       10,
+        "acceptable":  25,
+        "permissible": 75
+      }
+    },
+
+    "Oil_Grease": {
+      "layer":     "relaxable",
+      "direction": "up_bad",
+      "relaxable": true,
+      "impact":    "heat_transfer_fouling_biological_growth",
+      "unit":      "mg/L",
+      "weight":    0.15,
+      "limits": {
+        "ideal":       0,
+        "acceptable":  1,
+        "permissible": 5
+      },
+      "cooling_limits": {
+        "ideal":       0,
+        "acceptable":  5,
+        "permissible": 10
+      }
+    },
+
+    "Phosphate": {
+      "layer":     "relaxable",
+      "direction": "up_bad",
+      "relaxable": true,
+      "impact":    "scale_biological_fouling",
+      "unit":      "mg/L as PO4",
+      "weight":    0.10,
+      "limits": {
+        "ideal":       0.1,
+        "acceptable":  1.0,
+        "permissible": 5.0
+      },
+      "cooling_limits": {
+        "ideal":       1.0,
+        "acceptable":  5.0,
+        "permissible": 15.0
+      }
+    },
+
+    "Zinc": {
+      "layer":     "relaxable",
+      "direction": "up_bad",
+      "relaxable": true,
+      "impact":    "fouling_deposits",
+      "unit":      "mg/L",
+      "weight":    0.15,
+      "limits": {
+        "ideal":       0.05,
+        "acceptable":  0.5,
+        "permissible": 2.0
+      },
+      "cooling_limits": {
+        "ideal":       0.5,
+        "acceptable":  1.0,
+        "permissible": 5.0
+      }
+    }
+
+  }
+}
