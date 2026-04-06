@@ -44,7 +44,7 @@
       </div>
       <div class="profile-grid" id="profileGrid">
 
-        <button class="profile-card active" data-profile="drinking" aria-pressed="true">
+        <button class="profile-card active" data-profile="drinking" aria-pressed="true" onclick="selectProfile(this,'drinking')">
           <div class="pc-badge" style="--badge-color: var(--blue)">DW</div>
           <div class="pc-body">
             <div class="pc-name">Drinking Water</div>
@@ -53,7 +53,7 @@
           <div class="pc-arrow">&#8250;</div>
         </button>
 
-        <button class="profile-card" data-profile="agriculture" aria-pressed="false">
+        <button class="profile-card" data-profile="agriculture" aria-pressed="false" onclick="selectProfile(this,'agriculture')">
           <div class="pc-badge" style="--badge-color: var(--green)">AG</div>
           <div class="pc-body">
             <div class="pc-name">Agriculture</div>
@@ -62,7 +62,7 @@
           <div class="pc-arrow">&#8250;</div>
         </button>
 
-        <button class="profile-card" data-profile="industrial" aria-pressed="false">
+        <button class="profile-card" data-profile="industrial" aria-pressed="false" onclick="selectProfile(this,'industrial')">
           <div class="pc-badge" style="--badge-color: var(--amber)">IN</div>
           <div class="pc-body">
             <div class="pc-name">Industrial</div>
@@ -71,7 +71,7 @@
           <div class="pc-arrow">&#8250;</div>
         </button>
 
-        <button class="profile-card" data-profile="aquaculture" aria-pressed="false">
+        <button class="profile-card" data-profile="aquaculture" aria-pressed="false" onclick="selectProfile(this,'aquaculture')">
           <div class="pc-badge" style="--badge-color: var(--violet)">AQ</div>
           <div class="pc-body">
             <div class="pc-name">Aquaculture</div>

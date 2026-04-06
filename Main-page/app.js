@@ -231,6 +231,46 @@ async function fetchAnalysis(payload) {
 }
 
 /**
+ * POST CSV file to /api/analyze/csv using FormData.
+ * Falls back to mock batch result if backend is offline.
+ */
+async function fetchCsvAnalysis() {
+  if (!state.csvFile) {
+    return {
+      score: 0, zone: 'ACCEPTABLE', params: [],
+      flags: [{ type: 'warn', msg: 'No CSV file loaded. Drop a file first.' }],
+    };
+  }
+  try {
+    const form = new FormData();
+    form.append('file', state.csvFile);
+    const csvUrl = `${API_BASE}/api/analyze/csv?profile=${encodeURIComponent(state.profile)}`;
+    const res = await fetch(csvUrl, { method: 'POST', body: form });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    // Show first result's details, summarise rest
+    const first = data.results?.[0] ?? MOCK_RESULTS[state.profile];
+    if (data.results?.length > 1) {
+      first.flags = [
+        { type: 'ok', msg: `Batch: ${data.count} samples analysed. Showing first result (${first.sample_id ?? 'S001'}).` },
+        ...(first.flags ?? []),
+      ];
+    }
+    return first;
+  } catch (err) {
+    console.warn('[UPD] CSV backend unreachable, using mock data:', err.message);
+    const mock = MOCK_RESULTS[state.profile];
+    return {
+      ...mock,
+      flags: [
+        { type: 'ok', msg: `Mock batch mode — file "${state.csvFile.name}" loaded (backend offline)` },
+        ...mock.flags,
+      ],
+    };
+  }
+}
+
+/**
  * Build the payload for /api/analyze based on current mode.
  */
 function buildPayload() {
@@ -410,8 +450,15 @@ async function runAnalysis() {
   state.busy = true;
   setCtaLoading(true);
 
-  const payload = buildPayload();
-  const result  = await fetchAnalysis(payload);
+  let result;
+
+  // CSV mode uses multipart/form-data endpoint
+  if (state.mode === 'csv') {
+    result = await fetchCsvAnalysis();
+  } else {
+    const payload = buildPayload();
+    result = await fetchAnalysis(payload);
+  }
 
   state.lastResult = result;
   renderResults(result);
@@ -558,8 +605,25 @@ function downloadReport() {
    INIT
 ════════════════════════════════════════════ */
 (function init() {
+  // Build initial params grid
   buildParamsGrid('drinking');
+
+  // Wire profile cards via event delegation (belt-and-suspenders alongside onclick attrs)
+  const profileGrid = document.getElementById('profileGrid');
+  if (profileGrid) {
+    profileGrid.addEventListener('click', (e) => {
+      const card = e.target.closest('.profile-card');
+      if (!card) return;
+      const profile = card.dataset.profile;
+      if (profile && profile !== state.profile) selectProfile(card, profile);
+    });
+  }
 
   // Notify backend of initial profile on page load
   notifyProfileChange('drinking');
+
+  // Log backend mode
+  fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(2000) })
+    .then(r => r.ok && console.info('[UPD] Backend online ✓'))
+    .catch(() => console.info('[UPD] Mock mode active — backend not found at', API_BASE));
 })();

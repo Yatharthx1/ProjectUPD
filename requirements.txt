@@ -40,3 +40,8 @@ Pillow>=10.0.0            # Required by ReportLab for images
 # ── Utilities ───────────────────────────────────────────────
 openpyxl>=3.1.0           # Excel export support
 tqdm>=4.65.0              # Progress bars for batch processing
+
+# ── Web Server (Main-page backend) ──────────────────────────────────
+fastapi>=0.110.0          # REST API framework
+uvicorn[standard]>=0.29.0 # ASGI server
+python-multipart>=0.0.9   # Required for file upload (CSV mode)
