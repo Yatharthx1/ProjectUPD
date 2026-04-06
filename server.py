@@ -308,10 +308,51 @@ def _frontend_param_zone(sub_zone: str) -> str:
     }.get((sub_zone or "").lower(), "ACCEPTABLE")
 
 
+def _build_confidence_details(result: dict, profile_cfg: dict) -> dict[str, Any]:
+    params_cfg = profile_cfg.get("parameters", {})
+    sub_indices = result.get("sub_indices", {})
+    expected_params = list(params_cfg.keys())
+    missing_params: list[str] = []
+
+    for param in expected_params:
+        info = sub_indices.get(param)
+        if not info:
+            missing_params.append(_DISPLAY_NAMES.get(param, param))
+            continue
+        zone = str(info.get("zone", "")).upper()
+        if info.get("value") is None or zone in {"NO_DATA", "INVALID", "SUSPECT"}:
+            missing_params.append(_DISPLAY_NAMES.get(param, param))
+
+    confidence = float(result.get("confidence", 0) or 0)
+    provided_count = max(0, len(expected_params) - len(missing_params))
+    if confidence >= 0.85:
+        summary = "High confidence: most expected parameters were provided."
+    elif confidence >= 0.6:
+        summary = "Moderate confidence: some expected parameters are still missing."
+    else:
+        summary = "Low confidence: the result is based on limited input data."
+
+    reason = (
+        f"Confidence is {confidence:.0%} because {provided_count} of {len(expected_params)} expected parameters were provided."
+        if expected_params else
+        "Confidence could not be estimated because this profile has no expected parameters configured."
+    )
+
+    return {
+        "score": confidence,
+        "summary": summary,
+        "reason": reason,
+        "missing_params": missing_params,
+        "provided_count": provided_count,
+        "expected_count": len(expected_params),
+    }
+
+
 def _format_frontend_result(result: dict, profile_id: str, recommendations: dict | None = None) -> dict:
     profile_cfg = _load_profile(profile_id)
     params_cfg = profile_cfg.get("parameters", {})
     sub_indices = result.get("sub_indices", {})
+    confidence_details = _build_confidence_details(result, profile_cfg)
 
     formatted_params = []
     for param, info in sub_indices.items():
@@ -360,6 +401,7 @@ def _format_frontend_result(result: dict, profile_id: str, recommendations: dict
         "status": result.get("status", "UNKNOWN"),
         "classification": classification,
         "confidence": result.get("confidence", 0),
+        "confidence_details": confidence_details,
         "params": formatted_params,
         "flags": formatted_flags[:10],
         "raw_wqi": raw_wqi,
@@ -484,6 +526,14 @@ def _analyze_params(params: dict[str, float], profile_id: str) -> dict:
             "status": "UNKNOWN",
             "classification": "Pending",
             "confidence": 0,
+            "confidence_details": {
+                "score": 0,
+                "summary": "Low confidence: no parameters have been analyzed yet.",
+                "reason": "Confidence is low because no readings are available yet.",
+                "missing_params": [],
+                "provided_count": 0,
+                "expected_count": 0,
+            },
             "params": [],
             "flags": [{"type": "warn", "msg": "No parameters available yet. Add readings first."}],
             "raw_wqi": None,
@@ -570,6 +620,14 @@ async def analyze(req: AnalyzeRequest, request: Request):
             "status": "UNKNOWN",
             "classification": "Pending",
             "confidence": 0,
+            "confidence_details": {
+                "score": 0,
+                "summary": "Low confidence: no parameters have been analyzed yet.",
+                "reason": "Confidence is low because no readings are available yet.",
+                "missing_params": [],
+                "provided_count": 0,
+                "expected_count": 0,
+            },
             "params": [],
             "flags": [{"type": "warn", "msg": "Upload a CSV file and use Run Batch Analysis."}],
             "raw_wqi": None,

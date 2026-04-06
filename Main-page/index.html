@@ -97,7 +97,7 @@
           <button class="mode-tab active mode-tab--powered" role="tab" aria-selected="true"  data-tab="llm"    onclick="switchTab(this,'llm')">
             <span class="mode-tab-dot" aria-hidden="true"></span>
             <span>BLUE AI powered by Llama 3.3 70B on Groq</span>
-          </button>
+            </button>
           <button class="mode-tab"        role="tab" aria-selected="false" data-tab="manual" onclick="switchTab(this,'manual')">Manual Entry</button>
           <button class="mode-tab"        role="tab" aria-selected="false" data-tab="csv"    onclick="switchTab(this,'csv')">CSV Upload</button>
         </div>
@@ -220,6 +220,12 @@ S002, 6.8, 620, 5.8, 310, ...</pre>
           <div class="r-card">
             <p class="r-card-label">Parameter Breakdown</p>
             <div id="breakdown"></div>
+          </div>
+
+          <!-- Confidence -->
+          <div class="r-card">
+            <p class="r-card-label">Confidence Details</p>
+            <div id="confidenceDetails"></div>
           </div>
 
           <!-- Flags -->

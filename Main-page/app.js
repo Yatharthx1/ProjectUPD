@@ -562,6 +562,28 @@ function renderResults(result) {
     breakdown.appendChild(row);
   }
 
+  // Confidence details
+  const confidence = result.confidence_details ?? {
+    score: Number(result.confidence ?? 0),
+    summary: 'Confidence details are unavailable.',
+    reason: '',
+    missing_params: [],
+    provided_count: 0,
+    expected_count: 0,
+  };
+  const confidenceWrap = document.getElementById('confidenceDetails');
+  confidenceWrap.replaceChildren();
+  confidenceWrap.appendChild(createElem('div', 'confidence-score', `Confidence: ${Math.round((confidence.score ?? 0) * 100)}%`));
+  confidenceWrap.appendChild(createElem('div', 'confidence-summary', confidence.summary ?? ''));
+  if (confidence.reason) {
+    confidenceWrap.appendChild(createElem('div', 'confidence-reason', confidence.reason));
+  }
+  if (Array.isArray(confidence.missing_params) && confidence.missing_params.length) {
+    confidenceWrap.appendChild(
+      createElem('div', 'confidence-missing', `Missing parameters: ${confidence.missing_params.join(', ')}`),
+    );
+  }
+
   // Flags
   const ICONS = { ok: '✓', warn: '!', bad: '✗' };
   const flags = document.getElementById('flagsList');
