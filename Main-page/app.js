@@ -63,36 +63,38 @@ const PROFILE_PARAMS = {
     { id: 'EC',          label: 'EC',          unit: 'dS/m' },
     { id: 'TDS',         label: 'TDS',         unit: 'mg/L' },
     { id: 'SAR',         label: 'SAR',         unit: '' },
-    { id: 'Sodium',      label: 'Sodium',      unit: 'meq/L' },
-    { id: 'Chloride',    label: 'Chloride',    unit: 'meq/L' },
+    { id: 'Sodium',      label: 'Sodium',      unit: 'mg/L' },
+    { id: 'Chloride',    label: 'Chloride',    unit: 'mg/L' },
     { id: 'Boron',       label: 'Boron',       unit: 'mg/L' },
-    { id: 'Bicarbonate', label: 'Bicarbonate', unit: 'meq/L' },
-    { id: 'Nitrate',     label: 'Nitrate',     unit: 'mg/L' },
+    { id: 'Bicarbonate', label: 'Bicarbonate', unit: 'mg/L' },
+    { id: 'Nitrate_N',   label: 'Nitrate-N',   unit: 'mg/L as N' },
     { id: 'Iron',        label: 'Iron',        unit: 'mg/L' },
   ],
   industrial: [
-    { id: 'pH',        label: 'pH',          unit: '' },
-    { id: 'TDS',       label: 'TDS',         unit: 'mg/L' },
-    { id: 'Turbidity', label: 'Turbidity',   unit: 'NTU' },
-    { id: 'Hardness',  label: 'Hardness',    unit: 'mg/L' },
-    { id: 'Chloride',  label: 'Chloride',    unit: 'mg/L' },
-    { id: 'Sulfate',   label: 'Sulfate',     unit: 'mg/L' },
-    { id: 'Silica',    label: 'Silica',      unit: 'mg/L' },
-    { id: 'DO',        label: 'Dissolved O₂',unit: 'mg/L' },
-    { id: 'COD',       label: 'COD',         unit: 'mg/L' },
-    { id: 'BOD',       label: 'BOD',         unit: 'mg/L' },
+    { id: 'pH',         label: 'pH',                unit: '' },
+    { id: 'Alkalinity', label: 'Alkalinity',        unit: 'mg/L as CaCO3' },
+    { id: 'Chloride',   label: 'Chloride',          unit: 'mg/L' },
+    { id: 'TDS',        label: 'TDS',               unit: 'mg/L' },
+    { id: 'Hardness',   label: 'Hardness',          unit: 'mg/L as CaCO3' },
+    { id: 'Silica',     label: 'Silica',            unit: 'mg/L as SiO2' },
+    { id: 'Iron',       label: 'Iron',              unit: 'mg/L' },
+    { id: 'DO',         label: 'Dissolved Oxygen',  unit: 'mg/L' },
+    { id: 'Sulfate',    label: 'Sulfate',           unit: 'mg/L' },
+    { id: 'Turbidity',  label: 'Turbidity',         unit: 'NTU' },
+    { id: 'COD',        label: 'COD',               unit: 'mg/L' },
   ],
   aquaculture: [
     { id: 'pH',          label: 'pH',          unit: '' },
-    { id: 'DO',          label: 'Dissolved O₂',unit: 'mg/L' },
-    { id: 'Temperature', label: 'Temperature', unit: '°C' },
-    { id: 'Ammonia',     label: 'Ammonia',     unit: 'mg/L' },
-    { id: 'Nitrite',     label: 'Nitrite',     unit: 'mg/L' },
-    { id: 'Nitrate',     label: 'Nitrate',     unit: 'mg/L' },
-    { id: 'Turbidity',   label: 'Turbidity',   unit: 'NTU' },
-    { id: 'Hardness',    label: 'Hardness',    unit: 'mg/L' },
-    { id: 'Alkalinity',  label: 'Alkalinity',  unit: 'mg/L' },
-    { id: 'Salinity',    label: 'Salinity',    unit: 'ppt' },
+    { id: 'DO',          label: 'Dissolved Oxygen',  unit: 'mg/L' },
+    { id: 'Temperature', label: 'Temperature',       unit: 'deg C' },
+    { id: 'Ammonia_N',   label: 'Ammonia-N',         unit: 'mg/L as NH3-N' },
+    { id: 'Nitrite',     label: 'Nitrite',           unit: 'mg/L as NO2' },
+    { id: 'Nitrate',     label: 'Nitrate',           unit: 'mg/L as NO3' },
+    { id: 'CO2',         label: 'Free CO2',          unit: 'mg/L' },
+    { id: 'BOD',         label: 'BOD',               unit: 'mg/L' },
+    { id: 'Turbidity',   label: 'Turbidity',         unit: 'NTU' },
+    { id: 'Hardness',    label: 'Hardness',          unit: 'mg/L as CaCO3' },
+    { id: 'Alkalinity',  label: 'Alkalinity',        unit: 'mg/L as CaCO3' },
   ],
 };
 
@@ -127,6 +129,7 @@ let state = {
   chatTurn:   0,
   csvFile:    null,
   lastResult: null,
+  profileParamDefs: null,
 };
 
 /* ════════════════════════════════════════════
@@ -148,9 +151,16 @@ async function notifyProfileChange(profile) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     console.info('[UPD] Profile confirmed by backend:', data);
+    if (Array.isArray(data.param_defs) && data.param_defs.length) {
+      state.profileParamDefs = data.param_defs;
+      buildParamsGrid(profile);
+    }
+    return data;
   } catch (err) {
     // Backend offline — silently continue with mock mode
     console.warn('[UPD] Backend not reachable for profile update:', err.message);
+    state.profileParamDefs = null;
+    return null;
   }
 }
 
@@ -245,10 +255,11 @@ function appendTypingIndicator(id) {
 
 function buildPayload() {
   const base = { profile: state.profile, mode: state.mode };
+  const activeParamDefs = state.profileParamDefs ?? PROFILE_PARAMS[state.profile] ?? [];
 
   if (state.mode === 'manual') {
     const params = {};
-    PROFILE_PARAMS[state.profile].forEach(({ id }) => {
+    activeParamDefs.forEach(({ id }) => {
       const el = document.getElementById(`field_${id}`);
       if (el && el.value !== '') params[id] = parseFloat(el.value);
     });
@@ -296,6 +307,7 @@ function selectProfile(el, profile) {
   el.setAttribute('aria-pressed', 'true');
 
   state.profile = profile;
+  state.profileParamDefs = null;
 
   // Update header label
   document.getElementById('activeProfileLabel').textContent =
@@ -329,7 +341,8 @@ function switchTab(btn, tab) {
 ════════════════════════════════════════════ */
 function buildParamsGrid(profile) {
   const grid = document.getElementById('paramsGrid');
-  grid.innerHTML = PROFILE_PARAMS[profile].map(f => `
+  const fields = state.profileParamDefs ?? PROFILE_PARAMS[profile] ?? [];
+  grid.innerHTML = fields.map(f => `
     <div class="param-field">
       <label class="param-label" for="field_${f.id}">
         <span>${f.label}</span>

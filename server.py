@@ -139,12 +139,29 @@ _PARAM_KEY_MAP: dict[str, dict[str, str]] = {
     },
     "fao_agriculture": {
         "Nitrate": "Nitrate_N",
+        "Nitrates": "Nitrate_N",
         "Sulfate": "Sulfate",
     },
     "aquaculture": {
         "Ammonia": "Ammonia_N",
         "Salinity": "TDS",
     },
+}
+
+_CONFIDENCE_EXPECTED_PARAMS: dict[str, list[str]] = {
+    "bis_drinking": [
+        "coliform", "arsenic", "lead", "nitrates", "pH", "turbidity", "TDS",
+        "hardness", "chlorides", "sulphate", "fluoride", "iron", "dissolved_oxygen", "BOD",
+    ],
+    "fao_agriculture": [
+        "pH", "EC", "TDS", "SAR", "Sodium", "Chloride", "Boron", "Bicarbonate", "Nitrate_N", "Iron",
+    ],
+    "industrial": [
+        "pH", "Alkalinity", "Chloride", "TDS", "Hardness", "Silica", "Iron", "DO", "Sulfate", "Turbidity", "COD",
+    ],
+    "aquaculture": [
+        "pH", "DO", "Temperature", "Ammonia_N", "Nitrite", "Nitrate", "CO2", "BOD", "Turbidity", "Hardness", "Alkalinity",
+    ],
 }
 
 _DISPLAY_NAMES = {
@@ -160,6 +177,19 @@ _DISPLAY_NAMES = {
     "lead": "Lead",
     "coliform": "Coliform",
     "dissolved_oxygen": "Dissolved Oxygen",
+    "DO": "Dissolved Oxygen",
+    "EC": "EC",
+    "SAR": "SAR",
+    "Sodium": "Sodium",
+    "Chloride": "Chloride",
+    "Boron": "Boron",
+    "Bicarbonate": "Bicarbonate",
+    "Sulfate": "Sulfate",
+    "Silica": "Silica",
+    "Alkalinity": "Alkalinity",
+    "COD": "COD",
+    "CO2": "Free CO2",
+    "Temperature": "Temperature",
     "Ammonia_N": "Ammonia",
     "Nitrate_N": "Nitrate-N",
     "H2S": "Hydrogen Sulfide",
@@ -308,10 +338,10 @@ def _frontend_param_zone(sub_zone: str) -> str:
     }.get((sub_zone or "").lower(), "ACCEPTABLE")
 
 
-def _build_confidence_details(result: dict, profile_cfg: dict) -> dict[str, Any]:
+def _build_confidence_details(result: dict, profile_id: str, profile_cfg: dict) -> dict[str, Any]:
     params_cfg = profile_cfg.get("parameters", {})
     sub_indices = result.get("sub_indices", {})
-    expected_params = list(params_cfg.keys())
+    expected_params = _CONFIDENCE_EXPECTED_PARAMS.get(profile_id, list(params_cfg.keys()))
     missing_params: list[str] = []
 
     for param in expected_params:
@@ -348,11 +378,34 @@ def _build_confidence_details(result: dict, profile_cfg: dict) -> dict[str, Any]
     }
 
 
+def _build_frontend_param_defs(profile_id: str, profile_cfg: dict) -> list[dict[str, str]]:
+    params_cfg = profile_cfg.get("parameters", {})
+    param_ids = _CONFIDENCE_EXPECTED_PARAMS.get(profile_id, list(params_cfg.keys()))
+    defs: list[dict[str, str]] = []
+
+    for param_id in param_ids:
+        cfg = params_cfg.get(param_id, {})
+        unit = cfg.get("unit", "")
+        if unit in {"dimensionless", "pH units"}:
+            unit = ""
+        elif unit == "°C":
+            unit = "deg C"
+        defs.append(
+            {
+                "id": param_id,
+                "label": _DISPLAY_NAMES.get(param_id, param_id),
+                "unit": unit,
+            }
+        )
+
+    return defs
+
+
 def _format_frontend_result(result: dict, profile_id: str, recommendations: dict | None = None) -> dict:
     profile_cfg = _load_profile(profile_id)
     params_cfg = profile_cfg.get("parameters", {})
     sub_indices = result.get("sub_indices", {})
-    confidence_details = _build_confidence_details(result, profile_cfg)
+    confidence_details = _build_confidence_details(result, profile_id, profile_cfg)
 
     formatted_params = []
     for param, info in sub_indices.items():
@@ -606,7 +659,13 @@ async def set_profile(req: ProfileRequest):
     _session["profile"] = req.profile
     _session["chat_params"] = {}
     _session["chat_history"] = [{"role": "system", "content": SYSTEM_PROMPT}]
-    return {"ok": True, "profile": req.profile, "backend_profile": backend_id, "name": cfg.get("name", backend_id)}
+    return {
+        "ok": True,
+        "profile": req.profile,
+        "backend_profile": backend_id,
+        "name": cfg.get("name", backend_id),
+        "param_defs": _build_frontend_param_defs(backend_id, cfg),
+    }
 
 
 @app.post("/api/analyze")
