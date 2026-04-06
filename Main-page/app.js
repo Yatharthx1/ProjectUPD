@@ -1,5 +1,5 @@
 /**
- * Project UPD — app.js
+ * BLUE — app.js
  * Backend-connected water quality analysis interface
  */
 
@@ -9,7 +9,28 @@
    BACKEND CONFIG
    Update API_BASE to point to your FastAPI server.
 ════════════════════════════════════════════ */
-const API_BASE = 'http://localhost:8000';   // ← change this in production
+const CONFIGURED_API_BASE = document.querySelector('meta[name="blue-api-base"]')?.content?.trim()
+  || window.BLUE_API_BASE
+  || window.BLUE_CONFIG?.apiBase
+  || '';
+
+const API_BASE = (() => {
+  const candidate = CONFIGURED_API_BASE || window.location.origin;
+  try {
+    const url = new URL(candidate, window.location.origin);
+    const isLocalhost = ['localhost', '127.0.0.1'].includes(url.hostname);
+    if (window.location.protocol === 'https:' && url.protocol !== 'https:' && !isLocalhost) {
+      throw new Error('Insecure API base configured');
+    }
+    return url.origin;
+  } catch {
+    return window.location.origin;
+  }
+})();
+
+const MAX_CHAT_MESSAGE_LENGTH = 1500;
+const MAX_CSV_SIZE_BYTES = 2 * 1024 * 1024;
+const ALLOWED_CSV_TYPES = new Set(['text/csv', 'application/vnd.ms-excel', '']);
 
 const API = {
   setProfile:  `${API_BASE}/api/profile`,
@@ -22,16 +43,20 @@ const API = {
 ════════════════════════════════════════════ */
 const PROFILE_PARAMS = {
   drinking: [
-    { id: 'pH',        label: 'pH',           unit: '' },
-    { id: 'TDS',       label: 'TDS',          unit: 'mg/L' },
-    { id: 'Turbidity', label: 'Turbidity',    unit: 'NTU' },
-    { id: 'Hardness',  label: 'Hardness',     unit: 'mg/L' },
-    { id: 'Chloride',  label: 'Chloride',     unit: 'mg/L' },
-    { id: 'Sulfate',   label: 'Sulfate',      unit: 'mg/L' },
-    { id: 'Nitrate',   label: 'Nitrate',      unit: 'mg/L' },
-    { id: 'Fluoride',  label: 'Fluoride',     unit: 'mg/L' },
-    { id: 'Iron',      label: 'Iron',         unit: 'mg/L' },
-    { id: 'Arsenic',   label: 'Arsenic',      unit: 'μg/L' },
+    { id: 'Coliform',        label: 'Coliform',          unit: 'MPN/100mL' },
+    { id: 'Arsenic',         label: 'Arsenic',           unit: 'mg/L' },
+    { id: 'Lead',            label: 'Lead',              unit: 'mg/L' },
+    { id: 'Nitrates',        label: 'Nitrates',          unit: 'mg/L' },
+    { id: 'pH',              label: 'pH',                unit: '' },
+    { id: 'Turbidity',       label: 'Turbidity',         unit: 'NTU' },
+    { id: 'TDS',             label: 'TDS',               unit: 'mg/L' },
+    { id: 'Hardness',        label: 'Hardness',          unit: 'mg/L' },
+    { id: 'Chlorides',       label: 'Chlorides',         unit: 'mg/L' },
+    { id: 'Sulphate',        label: 'Sulphate',          unit: 'mg/L' },
+    { id: 'Fluoride',        label: 'Fluoride',          unit: 'mg/L' },
+    { id: 'Iron',            label: 'Iron',              unit: 'mg/L' },
+    { id: 'DissolvedOxygen', label: 'Dissolved Oxygen',  unit: 'mg/L' },
+    { id: 'BOD',             label: 'BOD',               unit: 'mg/L' },
   ],
   agriculture: [
     { id: 'pH',          label: 'pH',          unit: '' },
@@ -87,83 +112,10 @@ const ZONE_STYLE = {
   PERMISSIBLE: { color: '#fbbf24', bg: 'rgba(251,191,36,0.1)', border: 'rgba(251,191,36,0.25)' },
   BREACH:      { color: '#fb923c', bg: 'rgba(251,146,60,0.1)', border: 'rgba(251,146,60,0.25)' },
   DEFICIENT:   { color: '#f87171', bg: 'rgba(248,113,113,0.1)',border: 'rgba(248,113,113,0.25)' },
+  UNSAFE:      { color: '#f87171', bg: 'rgba(248,113,113,0.1)',border: 'rgba(248,113,113,0.25)' },
 };
 
 const ZONE_SEG_IDS = ['Ideal', 'Acceptable', 'Permissible', 'Breach', 'Deficient'];
-
-/* ════════════════════════════════════════════
-   FALLBACK / MOCK DATA  (used when backend is offline)
-   Remove or gate this once your API is live.
-════════════════════════════════════════════ */
-const MOCK_RESULTS = {
-  drinking: {
-    score: 72, zone: 'ACCEPTABLE',
-    params: [
-      { name: 'pH',        value: '7.4',  unit: '',     zone: 'IDEAL' },
-      { name: 'TDS',       value: '480',  unit: 'mg/L', zone: 'ACCEPTABLE' },
-      { name: 'Turbidity', value: '3.8',  unit: 'NTU',  zone: 'ACCEPTABLE' },
-      { name: 'Hardness',  value: '340',  unit: 'mg/L', zone: 'PERMISSIBLE' },
-      { name: 'Chloride',  value: '210',  unit: 'mg/L', zone: 'ACCEPTABLE' },
-      { name: 'Nitrate',   value: '38',   unit: 'mg/L', zone: 'PERMISSIBLE' },
-      { name: 'Fluoride',  value: '0.8',  unit: 'mg/L', zone: 'IDEAL' },
-      { name: 'Iron',      value: '0.22', unit: 'mg/L', zone: 'BREACH' },
-    ],
-    flags: [
-      { type: 'ok',   msg: 'pH within BIS IS:10500 ideal range (6.5 – 8.5)' },
-      { type: 'warn', msg: 'Hardness 340 mg/L exceeds acceptable limit (300 mg/L) — passes under relaxed permissible conditions' },
-      { type: 'warn', msg: 'Nitrate approaching permissible ceiling (45 mg/L) — routine monitoring recommended' },
-      { type: 'bad',  msg: 'Iron at 0.22 mg/L exceeds acceptable limit (0.1 mg/L) — aesthetic concern; BREACH classification' },
-    ],
-  },
-  agriculture: {
-    score: 65, zone: 'ACCEPTABLE',
-    params: [
-      { name: 'pH',          value: '7.6', unit: '',      zone: 'IDEAL' },
-      { name: 'EC',          value: '1.8', unit: 'dS/m',  zone: 'ACCEPTABLE' },
-      { name: 'SAR',         value: '6.2', unit: '',       zone: 'ACCEPTABLE' },
-      { name: 'Boron',       value: '0.9', unit: 'mg/L',  zone: 'IDEAL' },
-      { name: 'Chloride',    value: '4.2', unit: 'meq/L', zone: 'PERMISSIBLE' },
-      { name: 'Bicarbonate', value: '3.8', unit: 'meq/L', zone: 'PERMISSIBLE' },
-    ],
-    flags: [
-      { type: 'ok',   msg: 'EC 1.8 dS/m — moderate restriction; suitable for salt-tolerant crops' },
-      { type: 'warn', msg: 'SAR 6.2 — slight sodium accumulation risk on fine-textured soils' },
-      { type: 'warn', msg: 'Elevated bicarbonate — potential scaling on drip irrigation emitters' },
-    ],
-  },
-  industrial: {
-    score: 52, zone: 'PERMISSIBLE',
-    params: [
-      { name: 'pH',       value: '6.4', unit: '',     zone: 'ACCEPTABLE' },
-      { name: 'TDS',      value: '820', unit: 'mg/L', zone: 'PERMISSIBLE' },
-      { name: 'Hardness', value: '580', unit: 'mg/L', zone: 'BREACH' },
-      { name: 'Silica',   value: '28',  unit: 'mg/L', zone: 'PERMISSIBLE' },
-      { name: 'COD',      value: '95',  unit: 'mg/L', zone: 'BREACH' },
-      { name: 'BOD',      value: '22',  unit: 'mg/L', zone: 'PERMISSIBLE' },
-    ],
-    flags: [
-      { type: 'bad',  msg: 'Hardness 580 mg/L — BREACH: severe scaling risk for boilers and heat exchangers' },
-      { type: 'bad',  msg: 'COD 95 mg/L exceeds discharge ceiling — treatment required before use' },
-      { type: 'warn', msg: 'Silica within permissible range; softening recommended for high-pressure systems' },
-    ],
-  },
-  aquaculture: {
-    score: 81, zone: 'ACCEPTABLE',
-    params: [
-      { name: 'pH',          value: '7.8',  unit: '',     zone: 'IDEAL' },
-      { name: 'Dissolved O₂',value: '7.2',  unit: 'mg/L', zone: 'IDEAL' },
-      { name: 'Ammonia',     value: '0.04', unit: 'mg/L', zone: 'IDEAL' },
-      { name: 'Nitrite',     value: '0.12', unit: 'mg/L', zone: 'ACCEPTABLE' },
-      { name: 'Alkalinity',  value: '140',  unit: 'mg/L', zone: 'ACCEPTABLE' },
-      { name: 'Salinity',    value: '2.1',  unit: 'ppt',  zone: 'IDEAL' },
-    ],
-    flags: [
-      { type: 'ok',   msg: 'DO 7.2 mg/L — excellent oxygen levels for finfish and shrimp culture' },
-      { type: 'ok',   msg: 'Ammonia well within safe limits; no acute toxicity risk detected' },
-      { type: 'warn', msg: 'Nitrite 0.12 mg/L — acceptable but trending upward; consider partial water exchange' },
-    ],
-  },
-};
 
 /* ════════════════════════════════════════════
    STATE
@@ -224,9 +176,8 @@ async function fetchAnalysis(payload) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
-    console.warn('[UPD] Backend unreachable, using mock data:', err.message);
-    // Return mock data so the UI stays functional during development
-    return MOCK_RESULTS[state.profile];
+    console.warn('[UPD] Analysis request failed:', err.message);
+    return buildErrorResult(`Analysis request failed: ${err.message}`);
   }
 }
 
@@ -249,7 +200,8 @@ async function fetchCsvAnalysis() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     // Show first result's details, summarise rest
-    const first = data.results?.[0] ?? MOCK_RESULTS[state.profile];
+    const first = data.results?.[0];
+    if (!first) return buildErrorResult('CSV analysis returned no result rows.');
     if (data.results?.length > 1) {
       first.flags = [
         { type: 'ok', msg: `Batch: ${data.count} samples analysed. Showing first result (${first.sample_id ?? 'S001'}).` },
@@ -258,21 +210,39 @@ async function fetchCsvAnalysis() {
     }
     return first;
   } catch (err) {
-    console.warn('[UPD] CSV backend unreachable, using mock data:', err.message);
-    const mock = MOCK_RESULTS[state.profile];
-    return {
-      ...mock,
-      flags: [
-        { type: 'ok', msg: `Mock batch mode — file "${state.csvFile.name}" loaded (backend offline)` },
-        ...mock.flags,
-      ],
-    };
+    console.warn('[UPD] CSV analysis failed:', err.message);
+    return buildErrorResult(`CSV analysis failed: ${err.message}`);
   }
 }
 
 /**
  * Build the payload for /api/analyze based on current mode.
  */
+function buildErrorResult(message) {
+  return {
+    score: null,
+    zone: 'DEFICIENT',
+    status: 'ERROR',
+    classification: 'Unavailable',
+    params: [],
+    flags: [{ type: 'bad', msg: message }],
+  };
+}
+
+function createElem(tag, className, text) {
+  const el = document.createElement(tag);
+  if (className) el.className = className;
+  if (typeof text === 'string') el.textContent = text;
+  return el;
+}
+
+function appendTypingIndicator(id) {
+  const wrapper = createElem('div', 'typing-indicator');
+  wrapper.id = id;
+  wrapper.append(createElem('span'), createElem('span'), createElem('span'));
+  document.getElementById('chatWindow').appendChild(wrapper);
+}
+
 function buildPayload() {
   const base = { profile: state.profile, mode: state.mode };
 
@@ -292,6 +262,23 @@ function buildPayload() {
 
   // LLM mode: backend reads from session / chat context
   return { ...base, chat_session: true };
+}
+
+async function requestPdf(url, options, fallbackName) {
+  const res = await fetch(url, options);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  const blob = await res.blob();
+  const contentDisposition = res.headers.get('content-disposition') || '';
+  const match = contentDisposition.match(/filename=\"?([^\";]+)\"?/i);
+  const filename = match?.[1] ?? fallbackName;
+
+  const href = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = href;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(href);
 }
 
 /* ════════════════════════════════════════════
@@ -362,36 +349,52 @@ function buildParamsGrid(profile) {
 }
 
 /* ════════════════════════════════════════════
-   CHAT — AI ASSISTANT MODE
+   CHAT — BLUE AI
 ════════════════════════════════════════════ */
-const FALLBACK_BOT_REPLIES = [
-  'Understood. Detected pH ≈ 7.2, TDS ~480 mg/L, Turbidity ~4 NTU from your description. Do you have any readings for heavy metals such as iron or arsenic?',
-  'Parameters extracted: Hardness ~220 mg/L, Chloride ~180 mg/L. Sodium and fluoride values would strengthen the analysis — are those available?',
-  'Parameters are staged for the selected profile. Click Run Analysis to execute the WQI engine.',
-];
 
 function sendChat() {
   const input = document.getElementById('chatInput');
   const msg   = input.value.trim();
   if (!msg || state.busy) return;
+  if (msg.length > MAX_CHAT_MESSAGE_LENGTH) {
+    appendChatMsg('bot', `Please keep chat messages under ${MAX_CHAT_MESSAGE_LENGTH} characters.`);
+    return;
+  }
 
   input.value = '';
   appendChatMsg('user', msg);
 
   // Show typing indicator
   const typingId = `typing_${Date.now()}`;
-  document.getElementById('chatWindow').insertAdjacentHTML('beforeend', `
-    <div class="typing-indicator" id="${typingId}">
-      <span></span><span></span><span></span>
-    </div>
-  `);
+  appendTypingIndicator(typingId);
   scrollChat();
 
   // Try backend chat extraction, else use fallback reply
-  sendChatToBackend(msg).then(reply => {
+  sendChatToBackend(msg).then(async (data) => {
     const el = document.getElementById(typingId);
     if (el) el.remove();
-    appendChatMsg('bot', reply);
+    appendChatMsg('bot', data.reply);
+
+    if (data.report_ready) {
+      try {
+        const payload = buildPayload();
+        payload.meta = {
+          location: PROFILE_DISPLAY_NAMES[state.profile],
+        };
+        await requestPdf(
+          `${API_BASE}/api/report`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          },
+          `UPD_Report_${state.profile}_${Date.now()}.pdf`,
+        );
+        appendChatMsg('bot', 'PDF report downloaded successfully.');
+      } catch (err) {
+        appendChatMsg('bot', `I understood the report request, but the PDF download failed: ${err.message}`);
+      }
+    }
   });
 }
 
@@ -404,19 +407,25 @@ async function sendChatToBackend(message) {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    return data.reply ?? data.message ?? FALLBACK_BOT_REPLIES[state.chatTurn % FALLBACK_BOT_REPLIES.length];
-  } catch {
-    const reply = FALLBACK_BOT_REPLIES[state.chatTurn % FALLBACK_BOT_REPLIES.length];
-    state.chatTurn++;
-    return reply;
+    return {
+      reply: data.reply ?? data.message ?? 'Parameters noted. Run the analysis when ready.',
+      report_ready: Boolean(data.report_ready),
+      report_missing_data: Boolean(data.report_missing_data),
+    };
+  } catch (err) {
+    return {
+      reply: `Chat request failed: ${err.message}.`,
+      report_ready: false,
+      report_missing_data: false,
+    };
   }
 }
 
 function appendChatMsg(role, text) {
   const win = document.getElementById('chatWindow');
-  win.insertAdjacentHTML('beforeend', `
-    <div class="msg msg--${role === 'bot' ? 'bot' : 'user'}">${text}</div>
-  `);
+  const bubble = createElem('div', `msg msg--${role === 'bot' ? 'bot' : 'user'}`);
+  bubble.textContent = text;
+  win.appendChild(bubble);
   scrollChat();
 }
 
@@ -436,8 +445,20 @@ function onDrop(event) {
 
 function onFile(file) {
   if (!file) return;
-  state.csvFile = file;
   const loaded = document.getElementById('csvLoaded');
+  if (!file.name.toLowerCase().endsWith('.csv') || !ALLOWED_CSV_TYPES.has(file.type)) {
+    state.csvFile = null;
+    loaded.textContent = 'Only CSV files are allowed.';
+    loaded.hidden = false;
+    return;
+  }
+  if (file.size > MAX_CSV_SIZE_BYTES) {
+    state.csvFile = null;
+    loaded.textContent = `CSV file is too large. Maximum allowed size is ${Math.round(MAX_CSV_SIZE_BYTES / 1024 / 1024)} MB.`;
+    loaded.hidden = false;
+    return;
+  }
+  state.csvFile = file;
   loaded.textContent = `File loaded: ${file.name} — ${(file.size / 1024).toFixed(1)} KB`;
   loaded.hidden = false;
 }
@@ -497,13 +518,24 @@ function renderResults(result) {
   document.getElementById('rProfileName').textContent =
     PROFILE_DISPLAY_NAMES[state.profile];
 
-  // Animate WQI counter
-  animateCounter('wqiNumber', result.score, 900);
+  const displayZone =
+    !(typeof result.score === 'number' && Number.isFinite(result.score)) && result.status === 'UNSAFE'
+      ? 'UNSAFE'
+      : result.zone;
+
+  // Show the real engine WQI value; unsafe/pending states do not have one
+  if (typeof result.score === 'number' && Number.isFinite(result.score)) {
+    animateCounter('wqiNumber', result.score, 900);
+  } else {
+    document.getElementById('wqiNumber').textContent = 'N/A';
+  }
+  const denom = document.querySelector('.wqi-denom');
+  if (denom) denom.textContent = typeof result.score === 'number' && Number.isFinite(result.score) ? '/ 100' : '';
 
   // Zone pill
-  const zs   = ZONE_STYLE[result.zone] ?? ZONE_STYLE['ACCEPTABLE'];
+  const zs   = ZONE_STYLE[displayZone] ?? ZONE_STYLE['ACCEPTABLE'];
   const pill = document.getElementById('zonePill');
-  pill.textContent     = result.zone;
+  pill.textContent     = displayZone;
   pill.style.background = zs.bg;
   pill.style.color      = zs.color;
   pill.style.border     = `1px solid ${zs.border}`;
@@ -511,46 +543,56 @@ function renderResults(result) {
   // Zone spectrum bar — highlight active segment
   ZONE_SEG_IDS.forEach(z => {
     const seg = document.getElementById(`zs${z}`);
-    const isActive = z.toUpperCase() === result.zone;
+    const isActive = z.toUpperCase() === displayZone || (displayZone === 'UNSAFE' && z.toUpperCase() === 'DEFICIENT');
     seg.classList.toggle('active', isActive);
   });
 
   // Parameter breakdown
   const breakdown = document.getElementById('breakdown');
-  breakdown.innerHTML = result.params.map(p => {
+  breakdown.replaceChildren();
+  for (const p of result.params ?? []) {
     const c = ZONE_STYLE[p.zone]?.color ?? '#6a8aaa';
-    return `
-      <div class="param-row">
-        <div class="pr-dot" style="background:${c}"></div>
-        <div class="pr-name">${p.name}</div>
-        <div class="pr-value" style="color:${c}">${p.value}${p.unit ? ' ' + p.unit : ''}</div>
-      </div>
-    `;
-  }).join('');
+    const row = createElem('div', 'param-row');
+    const dot = createElem('div', 'pr-dot');
+    dot.style.background = c;
+    const name = createElem('div', 'pr-name', p.name ?? '');
+    const value = createElem('div', 'pr-value', `${p.value ?? ''}${p.unit ? ` ${p.unit}` : ''}`);
+    value.style.color = c;
+    row.append(dot, name, value);
+    breakdown.appendChild(row);
+  }
 
   // Flags
   const ICONS = { ok: '✓', warn: '!', bad: '✗' };
   const flags = document.getElementById('flagsList');
-  flags.innerHTML = result.flags.map(f => `
-    <div class="flag flag--${f.type}">
-      <em class="flag-icon">${ICONS[f.type] ?? '·'}</em>
-      <span>${f.msg}</span>
-    </div>
-  `).join('');
+  flags.replaceChildren();
+  for (const f of result.flags ?? []) {
+    const flag = createElem('div', `flag flag--${f.type}`);
+    const icon = createElem('em', 'flag-icon', ICONS[f.type] ?? '·');
+    const msg = createElem('span', '', f.msg ?? '');
+    flag.append(icon, msg);
+    flags.appendChild(flag);
+  }
 }
 
 /* ════════════════════════════════════════════
    COUNTER ANIMATION
 ════════════════════════════════════════════ */
 function animateCounter(elId, target, durationMs) {
-  const el    = document.getElementById(elId);
+  const el = document.getElementById(elId);
+  if (!(typeof target === 'number' && Number.isFinite(target))) {
+    el.textContent = 'N/A';
+    return;
+  }
   const start = performance.now();
-  const from  = parseInt(el.textContent, 10) || 0;
+  const current = Number.parseFloat(el.textContent) || 0;
+  const decimals = Number.isInteger(target) ? 0 : 2;
 
   function tick(now) {
     const progress = Math.min((now - start) / durationMs, 1);
-    const eased    = 1 - Math.pow(1 - progress, 3); // ease-out-cubic
-    el.textContent = Math.round(from + (target - from) * eased);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const value = current + (target - current) * eased;
+    el.textContent = decimals ? value.toFixed(decimals) : Math.round(value);
     if (progress < 1) requestAnimationFrame(tick);
   }
 
@@ -560,45 +602,38 @@ function animateCounter(elId, target, durationMs) {
 /* ════════════════════════════════════════════
    DOWNLOAD REPORT
 ════════════════════════════════════════════ */
-function downloadReport() {
+async function downloadReport() {
   if (!state.lastResult) return;
 
-  const d   = state.lastResult;
-  const now = new Date().toLocaleString('en-IN', { hour12: false });
-  const pad = (s, n) => String(s).padEnd(n);
+  try {
+    if (state.mode === 'csv' && state.csvFile) {
+      const form = new FormData();
+      form.append('file', state.csvFile);
+      await requestPdf(
+        `${API_BASE}/api/report/csv?profile=${encodeURIComponent(state.profile)}`,
+        { method: 'POST', body: form },
+        `UPD_Batch_Report_${Date.now()}.pdf`,
+      );
+      return;
+    }
 
-  const lines = [
-    '══════════════════════════════════════════════════════',
-    '  PROJECT UPD — WATER QUALITY ANALYSIS REPORT',
-    '══════════════════════════════════════════════════════',
-    `  Generated  : ${now}`,
-    `  Profile    : ${PROFILE_DISPLAY_NAMES[state.profile]}`,
-    `  WQI Score  : ${d.score} / 100`,
-    `  Zone       : ${d.zone}`,
-    '──────────────────────────────────────────────────────',
-    '  PARAMETER BREAKDOWN',
-    '──────────────────────────────────────────────────────',
-    ...d.params.map(p =>
-      `  ${pad(p.name, 20)} ${pad(p.value + (p.unit ? ' ' + p.unit : ''), 16)}  [${p.zone}]`
-    ),
-    '──────────────────────────────────────────────────────',
-    '  FLAGS & WARNINGS',
-    '──────────────────────────────────────────────────────',
-    ...d.flags.map(f => `  [${f.type.toUpperCase().padEnd(4)}]  ${f.msg}`),
-    '══════════════════════════════════════════════════════',
-    '  This report is generated by Project UPD.',
-    '  Consult a qualified water quality engineer before',
-    '  making operational decisions.',
-    '══════════════════════════════════════════════════════',
-  ];
-
-  const blob     = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
-  const url      = URL.createObjectURL(blob);
-  const anchor   = document.createElement('a');
-  anchor.href    = url;
-  anchor.download = `UPD_Report_${state.profile}_${Date.now()}.txt`;
-  anchor.click();
-  URL.revokeObjectURL(url);
+    const payload = buildPayload();
+    payload.meta = {
+      sample_id: `WEB-${Date.now()}`,
+      location: PROFILE_DISPLAY_NAMES[state.profile],
+    };
+    await requestPdf(
+      `${API_BASE}/api/report`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+      `UPD_Report_${state.profile}_${Date.now()}.pdf`,
+    );
+  } catch (err) {
+    renderResults(buildErrorResult(`Report download failed: ${err.message}`));
+  }
 }
 
 /* ════════════════════════════════════════════
@@ -624,6 +659,10 @@ function downloadReport() {
 
   // Log backend mode
   fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(2000) })
-    .then(r => r.ok && console.info('[UPD] Backend online ✓'))
-    .catch(() => console.info('[UPD] Mock mode active — backend not found at', API_BASE));
+    .then(async (r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      console.info('[UPD] Backend online', data);
+    })
+    .catch((err) => console.warn('[UPD] Backend health check failed:', err.message));
 })();

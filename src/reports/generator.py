@@ -300,7 +300,7 @@ def _page_chrome(canvas, doc, meta: dict):
     canvas.rect(0, PAGE_H - 14 * mm, PAGE_W, 14 * mm, fill=1, stroke=0)
     canvas.setFillColor(C_WHITE)
     canvas.setFont("Helvetica-Bold", 8)
-    canvas.drawString(MARGIN, PAGE_H - 9 * mm, "Project UPD -- Water Quality Report")
+    canvas.drawString(MARGIN, PAGE_H - 9 * mm, "BLUE -- Water Quality Report")
     canvas.setFont("Helvetica", 7)
     canvas.setFillColor(colors.HexColor("#85B7EB"))
     sid = meta.get("sample_id", "")
@@ -661,7 +661,7 @@ def generate_pdf_report(
         leftMargin=MARGIN, rightMargin=MARGIN,
         topMargin=18 * mm, bottomMargin=14 * mm,
         title="Water Quality Report",
-        author="Project UPD",
+        author="BLUE",
     )
 
     def on_page(canvas, doc):
@@ -715,7 +715,7 @@ def generate_pdf_report(
     story.append(HRFlowable(width=CONTENT_W, thickness=0.5, color=C_GRAY_LT))
     story.append(Spacer(1, 2 * mm))
     story.append(Paragraph(
-        "<b>Disclaimer:</b> This report is generated automatically by Project UPD "
+        "<b>Disclaimer:</b> This report is generated automatically by BLUE "
         "and is intended for informational purposes only. Results must be verified "
         "by an accredited laboratory before any regulatory or public health decisions.",
         styles["body_sm"]))
@@ -754,7 +754,7 @@ def generate_batch_report(
         output_path, pagesize=A4,
         leftMargin=MARGIN, rightMargin=MARGIN,
         topMargin=18 * mm, bottomMargin=14 * mm,
-        title=batch_title, author="Project UPD",
+        title=batch_title, author="BLUE",
     )
 
     def on_page(canvas, doc):

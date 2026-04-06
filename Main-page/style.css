@@ -377,6 +377,19 @@ body::before {
   color: var(--text-muted);
   cursor: pointer;
   transition: color var(--t), border-color var(--t), background var(--t);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.mode-tab-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--blue);
+  box-shadow: 0 0 0 4px rgba(43,127,255,0.12);
+  flex: 0 0 auto;
 }
 
 .mode-tab.active {

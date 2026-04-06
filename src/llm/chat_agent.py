@@ -1,6 +1,6 @@
 """
-chat_agent.py — WaterWise Conversational Agent (CLI)
-Project UPD | Phase 3
+chat_agent.py — BLUE AI Conversational Agent (CLI)
+BLUE | Phase 3
 """
 
 import json
@@ -18,10 +18,10 @@ load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
-    print("ERROR: GROQ_API_KEY not set. Get a free key at https://console.groq.com")
-    sys.exit(1)
-
-client = OpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
+    print("WARNING: GROQ_API_KEY not set. LLM features disabled. Get a free key at https://console.groq.com")
+    client = None
+else:
+    client = OpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
 
 CHAT_MODEL    = "llama-3.1-8b-instant"
 TOOL_MODEL    = "llama-3.3-70b-versatile"
@@ -30,11 +30,14 @@ EXTRACT_MODEL = "llama-3.1-8b-instant"
 MAX_HISTORY_TURNS = 5
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
+# chat_agent.py lives at src/llm/chat_agent.py → go up two levels to project root
 
-PROJECT_ROOT = Path(__file__).parent
-PROFILES_DIR = Path(r"C:\Users\hp\OneDrive\Desktop\ProjectUPD\config\profiles")
-SRC_DIR      = Path(r"C:\Users\hp\OneDrive\Desktop\ProjectUPD\src")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+PROFILES_DIR = PROJECT_ROOT / "config" / "profiles"
+SRC_DIR      = PROJECT_ROOT / "src"
 
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
@@ -50,14 +53,21 @@ def _get_wqi():
     if _wqi_import_error is not None:
         return None, _wqi_import_error
     try:
-        from engine import wqi_calculator
+        from src.engine import wqi_calculator
         _wqi_module = wqi_calculator
         print("  [✓ WQI engine loaded]")
         return _wqi_module, None
-    except ImportError as e:
-        _wqi_import_error = str(e)
-        print(f"  [✗ Engine import failed: {e}]")
-        return None, _wqi_import_error
+    except ImportError:
+        try:
+            # Fallback: if src/ is already on sys.path (e.g. when running from src/)
+            from engine import wqi_calculator
+            _wqi_module = wqi_calculator
+            print("  [✓ WQI engine loaded (fallback path)]")
+            return _wqi_module, None
+        except ImportError as e:
+            _wqi_import_error = str(e)
+            print(f"  [✗ Engine import failed: {e}]")
+            return None, _wqi_import_error
 
 # ── Parameter aliases — handled in Python, NEVER sent to the LLM ──────────────
 # This was the main token killer: ~3000 tokens per extraction call.
@@ -206,6 +216,14 @@ def _tool_extract_and_validate_parameters(raw_input: str, conversation_context: 
 
     # ── Slow path: LLM for messy/natural language input ───────────────────────
     # Prompt is kept tiny — no alias table, no bounds table (handled in code).
+    if client is None:
+        return {
+            "parameters": {}, "validation_issues": [],
+            "profile_hint": profile_hint, "use_case_hint": use_case_hint,
+            "qualitative_notes": ["LLM unavailable (GROQ_API_KEY not set). Please enter values as 'pH: 7.2, TDS: 500'."],
+            "units_used": {}, "_extraction_method": "failed"
+        }
+
     prompt = (
         f"Extract water quality parameter names and numeric values from this text.\n"
         f"Return ONLY a JSON object like {{\"pH\": 7.2, \"TDS\": 500}}. No markdown.\n\n"
@@ -265,13 +283,20 @@ PROFILES = {
 
 # ── System prompt ──────────────────────────────────────────────────────────────
 
-SYSTEM_PROMPT = """You are WaterWise, a water quality assistant (Project UPD).
+SYSTEM_PROMPT = """You are BLUE AI, a water quality assistant for BLUE.
 
 RULES:
 1. NEVER assume parameter values. Only use numbers the user explicitly wrote.
 2. NEVER call any tool on greetings, symptoms, or questions without numeric data.
-3. Reply in the same language as the user (English/Hindi/Hinglish).
+3. Match the user's language carefully:
+   - English input -> reply in English only
+   - Roman-script Hinglish input -> reply in natural Roman-script Hinglish only
+   - Devanagari Hindi input -> reply in simple Hindi
+   - Never switch scripts unless the user does
+   - Never use broken Hindi or awkward literal translation
 4. Keep replies concise.
+5. NEVER invent a WQI number.
+6. If analysis/report data says the sample is UNSAFE or has no numeric WQI, explicitly say the water is unsafe and that no numeric WQI is available.
 
 FLOW: Greet -> ask use case -> collect numbers -> extract -> confirm -> analyse -> offer PDF.
 
@@ -282,6 +307,50 @@ PROFILES: bis_drinking | who_drinking | fao_agriculture | industrial | aquacultu
 
 SYMPTOMS without numbers: name likely cause, ask for lab report.
 Always end remediation advice with "Consult a certified water treatment professional." """.strip()
+
+_HINDI_SCRIPT_RE = re.compile(r"[\u0900-\u097F]")
+_HINGLISH_CUES = (
+    "kya", "hai", "haan", "nahi", "nahin", "kar", "karo", "karna", "kar do",
+    "chahiye", "bata", "samjha", "samjhao", "paani", "jal", "peene", "ghar ka",
+    "kitna", "kaise", "kyun", "acha", "theek", "banao", "bhejo", "mujhe", "bhai",
+)
+_REPORT_REQUEST_RE = re.compile(
+    r"(?:\b(?:pdf|report|download)\b)|(?:make|create|generate|send)\s+(?:a\s+)?(?:pdf|report)|"
+    r"(?:report|pdf)\s*(?:banao|bana do|bhejo|send|chahiye|download|nikalo)|"
+    r"(?:रिपोर्ट|पीडीएफ)",
+    re.IGNORECASE,
+)
+
+
+def detect_reply_language(user_message: str) -> str:
+    text = (user_message or "").strip()
+    lower = text.lower()
+    if _HINDI_SCRIPT_RE.search(text):
+        return "hindi"
+    cue_hits = sum(1 for cue in _HINGLISH_CUES if cue in lower)
+    if cue_hits >= 1 and any(ch.isalpha() for ch in lower):
+        return "hinglish"
+    return "english"
+
+
+def is_report_request(user_message: str) -> bool:
+    return bool(_REPORT_REQUEST_RE.search(user_message or ""))
+
+
+def _runtime_style_instruction(user_message: str) -> str:
+    language = detect_reply_language(user_message)
+    if language == "hindi":
+        return (
+            "Reply in simple, natural Hindi in Devanagari. "
+            "Keep technical water-parameter names as commonly used in reports."
+        )
+    if language == "hinglish":
+        return (
+            "Reply in natural Hinglish using Roman script only. "
+            "Do not use Devanagari. Do not write broken Hindi. "
+            "Keep the tone conversational and clear."
+        )
+    return "Reply in clear English only. Do not switch into Hindi or Hinglish."
 
 # ── Tools ──────────────────────────────────────────────────────────────────────
 
@@ -400,6 +469,30 @@ def _tool_generate_pdf_report(analysis_result: str, user_context: str, language:
     except json.JSONDecodeError:
         return {"success": False, "error": "Could not parse analysis_result as JSON."}
     try:
+        from src.reports.generator import generate_pdf_report as shared_generate_pdf_report
+        from src.treatment.recommender import get_recommendations
+    except ImportError:
+        shared_generate_pdf_report = None
+        get_recommendations = None
+
+    if shared_generate_pdf_report is not None and get_recommendations is not None:
+        output_dir = PROJECT_ROOT / "reports"
+        output_dir.mkdir(exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = output_dir / f"wqi_report_{timestamp}.pdf"
+        profile_id = result.get("profile", "bis_drinking")
+        recommendations = get_recommendations(wqi_result=result, profile_id=profile_id)
+        meta = {
+            "sample_id": f"S{timestamp[-6:]}",
+            "location": user_context or "Unknown",
+            "profile_id": profile_id,
+            "tested_by": "",
+            "lab_ref": "",
+            "date": datetime.now().strftime("%d %b %Y"),
+        }
+        path = shared_generate_pdf_report(result, recommendations, str(output_path), meta)
+        return {"success": True, "path": str(Path(path).absolute()), "filename": Path(path).name}
+    try:
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.units import inch
@@ -439,7 +532,7 @@ def _tool_generate_pdf_report(analysis_result: str, user_context: str, language:
 
     story.append(Paragraph("Water Quality Analysis Report",
         S("H1", fontSize=22, textColor=BRAND_BLUE, spaceAfter=2)))
-    story.append(Paragraph(f"Project UPD  ·  {datetime.now().strftime('%d %B %Y, %H:%M')}",
+    story.append(Paragraph(f"BLUE  ·  {datetime.now().strftime('%d %B %Y, %H:%M')}",
         S("Sub", fontSize=9, textColor=colors.grey, spaceAfter=3)))
     story.append(Paragraph(f"<b>Source / Use case:</b> {user_context}",
         S("Ctx", fontSize=10, textColor=BRAND_DARK, spaceAfter=3)))
@@ -541,7 +634,7 @@ def _tool_generate_pdf_report(analysis_result: str, user_context: str, language:
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#aab7b8")))
     story.append(Spacer(1, 5))
     story.append(Paragraph(
-        f"Standard: {result.get('profile','N/A')}  ·  Project UPD  ·  "
+        f"Standard: {result.get('profile','N/A')}  ·  BLUE  ·  "
         "Auto-generated — verify with a certified water treatment professional.",
         S("Ft", fontSize=7.5, textColor=colors.grey)))
 
@@ -605,6 +698,8 @@ def _needs_tools(user_message: str) -> bool:
 
 
 def _groq_chat(messages: list, use_tools: bool = True) -> object:
+    if client is None:
+        raise RuntimeError("GROQ_API_KEY not set — cannot call LLM.")
     model  = TOOL_MODEL if use_tools else CHAT_MODEL
     kwargs = dict(model=model, messages=messages, max_tokens=512)
     if use_tools:
@@ -637,9 +732,11 @@ def _turn(history: list, user_message: str, force_no_tools: bool = False) -> str
     history.append({"role": "user", "content": user_message})
     trimmed   = _trim_history(history)
     use_tools = (not force_no_tools) and _needs_tools(user_message)
+    runtime_instruction = {"role": "system", "content": _runtime_style_instruction(user_message)}
 
     while True:
-        response = _groq_chat(trimmed, use_tools=use_tools)
+        request_messages = [trimmed[0], runtime_instruction, *trimmed[1:]] if trimmed else [runtime_instruction]
+        response = _groq_chat(request_messages, use_tools=use_tools)
         msg      = response.choices[0].message
         history.append(msg)
 
@@ -666,13 +763,13 @@ def _turn(history: list, user_message: str, force_no_tools: bool = False) -> str
 
 def run_agent():
     print("\n" + "=" * 60)
-    print("  WaterWise — Water Quality Assistant (Project UPD)")
+    print("  BLUE AI — Water Quality Assistant (BLUE)")
     print("=" * 60)
     print(f"  History window: {MAX_HISTORY_TURNS} turns  |  type 'exit' to quit\n")
 
     history  = [{"role": "system", "content": SYSTEM_PROMPT}]
     greeting = _turn(history, "Hello!", force_no_tools=True)
-    print(f"\nWaterWise: {greeting}\n")
+    print(f"\nBLUE AI: {greeting}\n")
 
     while True:
         try:
@@ -683,13 +780,13 @@ def run_agent():
         if not user_input:
             continue
         if user_input.lower() in ("exit", "quit", "bye", "band karo"):
-            print("WaterWise: Stay safe! 💧")
+            print("BLUE AI: Stay safe! 💧")
             break
         try:
             reply = _turn(history, user_input)
-            print(f"\nWaterWise: {reply}\n")
+            print(f"\nBLUE AI: {reply}\n")
         except RateLimitError:
-            print("\nWaterWise: Rate limit hit. Please wait a few minutes and try again.\n")
+            print("\nBLUE AI: Rate limit hit. Please wait a few minutes and try again.\n")
             break
 
 if __name__ == "__main__":

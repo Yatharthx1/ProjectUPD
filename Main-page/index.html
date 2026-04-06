@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Project UPD — Water Quality Analysis</title>
+  <title>BLUE — Water Quality Analysis</title>
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='22' fill='%232b7fff'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
@@ -14,7 +17,7 @@
   <header class="header">
     <div class="header-inner">
       <div class="logo">
-        <span class="logo-mark">UPD</span>
+        <span class="logo-mark">BLUE</span>
         <div class="logo-divider"></div>
         <span class="logo-sub">Water Quality Analysis</span>
       </div>
@@ -91,7 +94,10 @@
 
         <!-- Mode tabs -->
         <div class="mode-tabs" role="tablist">
-          <button class="mode-tab active" role="tab" aria-selected="true"  data-tab="llm"    onclick="switchTab(this,'llm')">AI Assistant</button>
+          <button class="mode-tab active mode-tab--powered" role="tab" aria-selected="true"  data-tab="llm"    onclick="switchTab(this,'llm')">
+            <span class="mode-tab-dot" aria-hidden="true"></span>
+            <span>BLUE AI powered by Llama 3.3 70B on Groq</span>
+          </button>
           <button class="mode-tab"        role="tab" aria-selected="false" data-tab="manual" onclick="switchTab(this,'manual')">Manual Entry</button>
           <button class="mode-tab"        role="tab" aria-selected="false" data-tab="csv"    onclick="switchTab(this,'csv')">CSV Upload</button>
         </div>
@@ -100,7 +106,7 @@
         <div class="tab-pane active" id="tab-llm" role="tabpanel">
           <div class="chat-window" id="chatWindow" aria-live="polite">
             <div class="msg msg--bot">
-              Describe your water sample — source type, location, observed characteristics, or paste raw readings. I will extract the relevant parameters and prepare them for WQI analysis.
+              Describe your water sample — source type, location, observed characteristics, or paste raw readings. BLUE AI will extract the relevant parameters and prepare them for WQI analysis.
             </div>
           </div>
           <div class="chat-row">
