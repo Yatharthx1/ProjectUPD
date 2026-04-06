@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project UPD — Water Quality Analysis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ═══ HEADER ═══ -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-mark">UPD</span>
+        <div class="logo-divider"></div>
+        <span class="logo-sub">Water Quality Analysis</span>
+      </div>
+      <nav class="header-nav">
+        <span class="nav-label" id="activeProfileLabel">Drinking Water</span>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ═══ MAIN ═══ -->
+  <main class="main">
+
+    <!-- Hero -->
+    <section class="hero">
+      <p class="hero-eyebrow">Analysis Interface</p>
+      <h1 class="hero-headline">Water Quality<br><em>Index Engine</em></h1>
+      <p class="hero-desc">
+        Multi-standard compliance — hard-gate routing with five-zone WQI scoring across BIS, WHO, FAO, and sector-specific profiles.
+      </p>
+    </section>
+
+    <!-- Profile Selection -->
+    <section class="profile-section" aria-label="Select analysis profile">
+      <div class="section-header">
+        <span class="section-label">Select Profile</span>
+        <span class="section-hint">Determines parameter set and compliance standard</span>
+      </div>
+      <div class="profile-grid" id="profileGrid">
+
+        <button class="profile-card active" data-profile="drinking" aria-pressed="true">
+          <div class="pc-badge" style="--badge-color: var(--blue)">DW</div>
+          <div class="pc-body">
+            <div class="pc-name">Drinking Water</div>
+            <div class="pc-std">BIS IS:10500 · WHO 4th Edition</div>
+          </div>
+          <div class="pc-arrow">&#8250;</div>
+        </button>
+
+        <button class="profile-card" data-profile="agriculture" aria-pressed="false">
+          <div class="pc-badge" style="--badge-color: var(--green)">AG</div>
+          <div class="pc-body">
+            <div class="pc-name">Agriculture</div>
+            <div class="pc-std">FAO Ayers &amp; Westcot 1985</div>
+          </div>
+          <div class="pc-arrow">&#8250;</div>
+        </button>
+
+        <button class="profile-card" data-profile="industrial" aria-pressed="false">
+          <div class="pc-badge" style="--badge-color: var(--amber)">IN</div>
+          <div class="pc-body">
+            <div class="pc-name">Industrial</div>
+            <div class="pc-std">IS:2490 · BIS Effluent Standards</div>
+          </div>
+          <div class="pc-arrow">&#8250;</div>
+        </button>
+
+        <button class="profile-card" data-profile="aquaculture" aria-pressed="false">
+          <div class="pc-badge" style="--badge-color: var(--violet)">AQ</div>
+          <div class="pc-body">
+            <div class="pc-name">Aquaculture</div>
+            <div class="pc-std">CPCB · FAO AP&amp;H Paper 68</div>
+          </div>
+          <div class="pc-arrow">&#8250;</div>
+        </button>
+
+      </div>
+    </section>
+
+    <!-- Workspace -->
+    <div class="workspace">
+
+      <!-- ── Input Panel ── -->
+      <section class="input-panel" aria-label="Sample input">
+
+        <!-- Mode tabs -->
+        <div class="mode-tabs" role="tablist">
+          <button class="mode-tab active" role="tab" aria-selected="true"  data-tab="llm"    onclick="switchTab(this,'llm')">AI Assistant</button>
+          <button class="mode-tab"        role="tab" aria-selected="false" data-tab="manual" onclick="switchTab(this,'manual')">Manual Entry</button>
+          <button class="mode-tab"        role="tab" aria-selected="false" data-tab="csv"    onclick="switchTab(this,'csv')">CSV Upload</button>
+        </div>
+
+        <!-- LLM Tab -->
+        <div class="tab-pane active" id="tab-llm" role="tabpanel">
+          <div class="chat-window" id="chatWindow" aria-live="polite">
+            <div class="msg msg--bot">
+              Describe your water sample — source type, location, observed characteristics, or paste raw readings. I will extract the relevant parameters and prepare them for WQI analysis.
+            </div>
+          </div>
+          <div class="chat-row">
+            <input
+              class="chat-input"
+              id="chatInput"
+              type="text"
+              autocomplete="off"
+              placeholder="e.g. Borewell sample, slightly turbid, pH around 7.2..."
+              aria-label="Describe your water sample"
+              onkeydown="if(event.key==='Enter') sendChat()"
+            >
+            <button class="btn-send" onclick="sendChat()" aria-label="Send message">Send</button>
+          </div>
+          <button class="btn-analyze" id="cta-llm" onclick="runAnalysis()">Run Analysis</button>
+        </div>
+
+        <!-- Manual Tab -->
+        <div class="tab-pane" id="tab-manual" role="tabpanel">
+          <div class="params-grid" id="paramsGrid" aria-label="Parameter inputs"></div>
+          <button class="btn-analyze" id="cta-manual" onclick="runAnalysis()">Run Analysis</button>
+        </div>
+
+        <!-- CSV Tab -->
+        <div class="tab-pane" id="tab-csv" role="tabpanel">
+          <div
+            class="dropzone"
+            id="dropzone"
+            tabindex="0"
+            role="button"
+            aria-label="Upload CSV file"
+            onclick="document.getElementById('fileInput').click()"
+            ondragover="event.preventDefault(); this.classList.add('dropzone--over')"
+            ondragleave="this.classList.remove('dropzone--over')"
+            ondrop="onDrop(event)"
+            onkeydown="if(event.key==='Enter'||event.key===' ') document.getElementById('fileInput').click()"
+          >
+            <div class="dz-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="12" y1="18" x2="12" y2="12"/>
+                <polyline points="9 15 12 12 15 15"/>
+              </svg>
+            </div>
+            <p class="dz-title">Drop CSV file here</p>
+            <p class="dz-sub">or click to browse &mdash; supports multi-sample batch mode</p>
+            <input type="file" id="fileInput" accept=".csv" style="display:none" onchange="onFile(this.files[0])">
+          </div>
+
+          <div class="csv-loaded" id="csvLoaded" hidden></div>
+
+          <div class="csv-format">
+            <p class="csv-format-label">Expected Format</p>
+            <pre class="csv-format-pre">sample_id, pH, TDS, Turbidity, Hardness, ...
+S001, 7.2, 450, 3.1, 220, ...
+S002, 6.8, 620, 5.8, 310, ...</pre>
+          </div>
+
+          <button class="btn-analyze" id="cta-csv" onclick="runAnalysis()">Run Batch Analysis</button>
+        </div>
+
+      </section>
+
+      <!-- ── Results Panel ── -->
+      <section class="results-panel" aria-label="Analysis results" aria-live="polite">
+
+        <!-- Placeholder -->
+        <div class="r-placeholder" id="rPlaceholder">
+          <div class="r-placeholder-inner">
+            <div class="ph-graphic">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity="0.3">
+                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+              </svg>
+            </div>
+            <p class="ph-title">No Results Yet</p>
+            <p class="ph-sub">Select a profile, configure your sample, and run the analysis engine.</p>
+          </div>
+        </div>
+
+        <!-- Results (revealed after analysis) -->
+        <div id="rResults" hidden>
+
+          <!-- WQI Score Card -->
+          <div class="r-card r-card--score">
+            <p class="r-card-label">WQI Score &mdash; <span id="rProfileName">—</span></p>
+            <div class="wqi-display">
+              <span class="wqi-number" id="wqiNumber">0</span>
+              <span class="wqi-denom">/ 100</span>
+            </div>
+            <div class="zone-pill" id="zonePill">—</div>
+            <div class="zone-spectrum">
+              <div class="zone-bar">
+                <div class="zone-seg zone-seg--ideal"       id="zsIdeal"></div>
+                <div class="zone-seg zone-seg--acceptable"  id="zsAcceptable"></div>
+                <div class="zone-seg zone-seg--permissible" id="zsPermissible"></div>
+                <div class="zone-seg zone-seg--breach"      id="zsBreach"></div>
+                <div class="zone-seg zone-seg--deficient"   id="zsDeficient"></div>
+              </div>
+              <div class="zone-bar-labels">
+                <span>Ideal</span>
+                <span>Acceptable</span>
+                <span>Permissible</span>
+                <span>Breach</span>
+                <span>Deficient</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Parameter Breakdown -->
+          <div class="r-card">
+            <p class="r-card-label">Parameter Breakdown</p>
+            <div id="breakdown"></div>
+          </div>
+
+          <!-- Flags -->
+          <div class="r-card">
+            <p class="r-card-label">Flags &amp; Warnings</p>
+            <div id="flagsList"></div>
+          </div>
+
+          <!-- Download -->
+          <button class="btn-download" onclick="downloadReport()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download Full Report
+          </button>
+
+        </div>
+
+      </section>
+
+    </div><!-- /workspace -->
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
