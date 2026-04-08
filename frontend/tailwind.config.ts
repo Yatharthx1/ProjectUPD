@@ -9,20 +9,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: "var(--bg)",
-        glow: "var(--glow)",
-        warning: "var(--warning)",
-        text: "var(--text)",
-        muted: "var(--muted)",
-        "organism-membrane": "var(--organism-membrane)",
+        bg: "#050D1A",
+        primary: "#0A1628",
+        accent: "#2563EB",
+        clean: "#60A5FA",
+        light: "#F8FAFC",
       },
       fontFamily: {
-        bebas: ["var(--font-bebas)", "sans-serif"],
-        jetbrains: ["var(--font-jetbrains)", "monospace"],
-        space: ["var(--font-space)", "monospace"],
-      },
-      backgroundImage: {
-        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
+        inter: ["var(--font-inter)", "sans-serif"],
       },
     },
   },
